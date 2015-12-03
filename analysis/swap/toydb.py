@@ -85,7 +85,7 @@ class ToyDB(object):
             # Store their name, and other information:
             for k in range(self.population):
                 classifier = {}
-                classifier['Name'] = 'Phil'+str(k)
+                classifier['Name'] = 'MRbeck'+str(k)
                 classifier['count'] = 0
                 classifier['truePL'],classifier['truePD'] = self.draw_from_Beta2D()
                 array.append(classifier)
@@ -112,7 +112,7 @@ class ToyDB(object):
                 if subject['category'] == 'training':
                     if np.random.rand() > 0.5:
                         subject['kind'] = 'sim'
-                        subject['truth'] = 'LENS'
+                        subject['truth'] = 'SMOOTH'
                     else:
                         subject['kind'] = 'dud'
                         subject['truth'] = 'NOT'
@@ -122,7 +122,7 @@ class ToyDB(object):
                     subject['truth'] = 'UNKNOWN'
                     # But we do actually need to know what this is!
                     if np.random.rand() < self.prior:
-                        subject['strewth'] = 'LENS'
+                        subject['strewth'] = 'SMOOTH'
                     else:
                         subject['strewth'] = 'NOT'
 
@@ -256,13 +256,13 @@ class ToyDB(object):
         elif subject['category'] == 'test':
             truth = subject['strewth']
 
-        if truth == 'LENS':
-            if np.random.rand() < classifier['truePL']: word = 'LENS'
+        if truth == 'SMOOTH':
+            if np.random.rand() < classifier['truePL']: word = 'SMOOTH'
             else: word = 'NOT'
 
         elif truth == 'NOT':
             if np.random.rand() < classifier['truePD']: word = 'NOT'
-            else: word = 'LENS'
+            else: word = 'SMOOTH'
 
         return word
 

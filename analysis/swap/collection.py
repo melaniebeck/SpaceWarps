@@ -5,6 +5,7 @@ import swap
 import numpy as np
 import pylab as plt
 from subject import Ntrajectory
+import pdb
 # ======================================================================
 
 class Collection(object):
@@ -257,9 +258,12 @@ class Collection(object):
             tick.set_visible(False)
         plt.sca(hax)
         if logscale:
-            plt.arrow(np.log10(2e-4), np.log10(0.3), 0.0, 0.1, fc="k", ec="k", linewidth=2, head_width=0.2, head_length=0.1)
+            plt.arrow(np.log10(swap.prior), np.log10(0.3), 0.0, 0.1, 
+                      fc="k", ec="k", linewidth=2, head_width=0.2, 
+                      head_length=0.1)
         else:
-            plt.arrow(np.log10(2e-4), -0.8, 0.0, 0.1, fc="k", ec="k", linewidth=2, head_width=0.2, head_length=0.1)
+            plt.arrow(np.log10(swap.prior), -0.8, 0.0, 0.1, fc="k", ec="k", 
+                      linewidth=2, head_width=0.2, head_length=0.1)
         # hax.set_axis_off()
 
         # Now overlay a transparent frame to plot the subjects in:
@@ -273,7 +277,7 @@ class Collection(object):
 
         # Vertical lines to mark prior and detect/rejection thresholds:
         x = self.thresholds()
-        plt.axvline(x=swap.prior,color='gray',linestyle='dotted')
+        plt.axvline(x=swap.prior,color='gray',linestyle='dotted')#swap.prior
         plt.axvline(x=x['detection'],color='blue',linestyle='dotted')
         plt.axvline(x=x['rejection'],color='red',linestyle='dotted')
 
@@ -298,17 +302,17 @@ class Collection(object):
             plt.sca(lower)
             lower.set_xlim(swap.pmin,swap.pmax)
             lower.set_xscale('log')
-            lower.set_ylim(0.1,9999)
-            # lower.set_yscale('log')
+            lower.set_ylim(0.1,3*9999)
+            #lower.set_yscale('log')
             plt.axvline(x=swap.prior,color='gray',linestyle='dotted')
             plt.axvline(x=x['detection'],color='blue',linestyle='dotted')
             plt.axvline(x=x['rejection'],color='red',linestyle='dotted')
-            lower.set_xlabel('Posterior Probability Pr(LENS|d)')
+            lower.set_xlabel('Posterior Probability Pr(SMOOTH|d)')
             lower.set_ylabel('No. of subjects')
 
         else:
             lower = False
-            upper.set_xlabel('Posterior Probability Pr(LENS|d)')
+            upper.set_xlabel('Posterior Probability Pr(SMOOTH|d)')
 
 
         return [upper,lower]

@@ -1,12 +1,14 @@
 # ===========================================================================
 
-import os, glob
+import os, glob, pdb
 
 # ======================================================================
 # Global parameters:
 
 # Limits to subject probability (cannot go over 1 anyway):
-pmin,pmax = 2e-8,1.1
+pmin,pmax = 0.001,1.2
+
+prior = 0.3
 
 # Plotting limits for no. of classifications (per subject):
 Ncmin,Ncmax = 0.2,60
@@ -75,6 +77,7 @@ class Configuration(object):
             line = line.split('#')[0]
             # Remove whitespace:
             line = ''.join(line.split())
+            print line
             # Ignore lines without colons:
             if ':' not in line: continue
             # Interpret remaining lines, which contain Name:Value pairs:

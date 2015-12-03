@@ -46,7 +46,7 @@ class Bureau(object):
 
     def __init__(self):
         self.member = {}
-        self.probabilities = {'LENS':np.array([]), 'NOT':np.array([])}
+        self.probabilities = {'SMOOTH':np.array([]), 'NOT':np.array([])}
         self.contributions = np.array([])
 
         return None
@@ -95,7 +95,7 @@ class Bureau(object):
             Ntraining = np.append(Ntraining,agent.NT)
             Ntotal = np.append(Ntotal,agent.N)  # Nc
 
-        self.probabilities['LENS'] = PLarray
+        self.probabilities['SMOOTH'] = PLarray
         self.probabilities['NOT'] = PDarray
         self.contributions = contributions
         self.skills = skills
@@ -185,7 +185,7 @@ class Bureau(object):
         TheseFewNames = self.shortlist(np.min([Nc,self.size()]))
         index = [i for i,Name in enumerate(self.list()) if Name in set(TheseFewNames)]
         PD = self.probabilities['NOT'][index]
-        PL = self.probabilities['LENS'][index]
+        PL = self.probabilities['SMOOTH'][index]
         I = self.contributions[index]
         S = self.skills[index]
         NT = self.Ntraining[index]
@@ -234,7 +234,7 @@ class Bureau(object):
 
         # For the histograms use all the information available
         PD=self.probabilities['NOT']
-        PL=self.probabilities['LENS']
+        PL=self.probabilities['SMOOTH']
 
         # Right histogram panel:
         plt.sca(righthist)
@@ -256,7 +256,7 @@ class Bureau(object):
         plt.axvline(0.5,color='gray',linestyle='dotted')
         for label in lowerhist.get_yticklabels():
             label.set_visible(False)
-        lowerhist.set_xlabel('Pr("LENS"|LENS)')
+        lowerhist.set_xlabel('Pr("SMOOTH"|SMOOTH)')
 
         plt.hist(PL, bins=bins, histtype='stepfilled', color='blue', alpha=0.7)
 

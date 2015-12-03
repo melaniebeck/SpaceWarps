@@ -4,8 +4,9 @@ import swap
 
 import numpy as np
 import pylab as plt
+import pdb
 
-actually_it_was_dictionary = {'LENS': 1, 'NOT': 0, 'UNKNOWN': -1}
+actually_it_was_dictionary = {'SMOOTH': 1, 'NOT': 0, 'UNKNOWN': -1}
 
 # ======================================================================
 
@@ -138,8 +139,7 @@ class Agent(object):
 
         return self.skill
 
-# ----------------------------------------------------------------------
-# Update confusion matrix with latest result:
+# ----------------------------------------------------------------------# Update confusion matrix with latest result:
 #   eg.  collaboration.member[Name].heard(it_was='LENS',actually_it_was='NOT',with_probability=P,ignore=False)
 
     def heard(self,it_was=None,actually_it_was=None,with_probability=1.0,ignore=False,ID=None,record=True,at_time=None):
@@ -149,18 +149,22 @@ class Agent(object):
 
         else:
                         
-            if actually_it_was=='LENS':
+            if actually_it_was=='SMOOTH':
                 if not ignore:
-                    self.PL = (self.PL*self.NL + (it_was==actually_it_was))/(1+self.NL)
+                    self.PL = (self.PL*self.NL + (it_was==actually_it_was))\
+                              /(1+self.NL)
                     self.PL = np.min([self.PL,swap.PLmax])
                     self.PL = np.max([self.PL,swap.PLmin])
-                # Always update experience, even if Agents are not willing to learn. PJM 8/7/14
+                # Always update experience, even if Agents are not willing 
+                # to learn. PJM 8/7/14
                 self.NL += 1
                 self.NT += 1
 
+                #pdb.set_trace()
             elif actually_it_was=='NOT':
                 if not ignore:
-                    self.PD = (self.PD*self.ND + (it_was==actually_it_was))/(1+self.ND)
+                    self.PD = (self.PD*self.ND + (it_was==actually_it_was))\
+                              /(1+self.ND)
                     self.PD = np.min([self.PD,swap.PDmax])
                     self.PD = np.max([self.PD,swap.PDmin])
                 self.ND += 1
@@ -170,17 +174,19 @@ class Agent(object):
             elif actually_it_was=='UNKNOWN':
 
                 increment = with_probability
+                #increment = 2e-2
 
-                if it_was=='LENS':
-
+                if it_was=='SMOOTH':
                     if not ignore:
-                        self.PL = (self.PL*self.NL + increment)/(self.NL + increment)
+                        self.PL = (self.PL*self.NL + increment)/(self.NL + 
+                                                                 increment)
                         self.PL = np.min([self.PL,swap.PLmax])
                         self.PL = np.max([self.PL,swap.PLmin])
                     self.NL += increment
 
                     if not ignore:
-                        self.PD = (self.PD*self.ND +       0.0)/(self.ND + (1.0-increment))
+                        self.PD = (self.PD*self.ND + 0.0)/(self.ND + 
+                                                           (1.0-increment))
                         self.PD = np.min([self.PD,swap.PDmax])
                         self.PD = np.max([self.PD,swap.PDmin])
                     self.ND += (1.0 - increment)
@@ -188,37 +194,56 @@ class Agent(object):
                 elif it_was=='NOT':
 
                     if not ignore:
-                        self.PL = (self.PL*self.NL +       0.0)/(self.NL + increment)
+                        self.PL = (self.PL*self.NL + 0.0)/(self.NL + increment)
                         self.PL = np.min([self.PL,swap.PLmax])
                         self.PL = np.max([self.PL,swap.PLmin])
                     self.NL += increment
 
                     if not ignore:
-                        self.PD = (self.PD*self.ND + (1.0-increment))/(self.ND + (1.0-increment))
+                        self.PD = (self.PD*self.ND +(1.0-increment))/(self.ND + 
+                                                                (1.0-increment))
                         self.PD = np.min([self.PD,swap.PDmax])
                         self.PD = np.max([self.PD,swap.PDmin])
                     self.ND += (1.0 - increment)
 
                 # self.NT += 1 # Don't count test images as training images?! 
-                # self.NT == 0 if unsupervised? Not sure. Maybe better to count every image 
+                # self.NT == 0 if unsupervised? Not sure. Maybe better to count
+                # every image 
                 # as training when unsupervised... Bit odd though.
                 self.NT += 1
 
             else:
-                raise Exception("Apparently, the subject was actually a "+str(actually_it_was))
+                raise Exception("Apparently, the subject was actually a "+
+                                str(actually_it_was))
 
             if record:
                 # Always log on what are we trained, even if not learning:
-                self.traininghistory['ID'] = np.append(self.traininghistory['ID'],ID)
-                # Always log progress, even if not learning:
-                self.traininghistory['Skill'] = np.append(self.traininghistory['Skill'],self.update_skill())
-                # NB. self.skill is now up to date.
-                self.traininghistory['PL'] = np.append(self.traininghistory['PL'],self.PL)
-                self.traininghistory['PD'] = np.append(self.traininghistory['PD'],self.PD)
+                self.traininghistory['ID'] = \
+                                    np.append(self.traininghistory['ID'],ID)
 
-                self.traininghistory['ItWas'] = np.append(self.traininghistory['ItWas'], actually_it_was_dictionary[it_was])
-                self.traininghistory['ActuallyItWas'] = np.append(self.traininghistory['ActuallyItWas'], actually_it_was_dictionary[actually_it_was])
-                self.traininghistory['At_Time'] = np.append(self.traininghistory['At_Time'], at_time)
+                # Always log progress, even if not learning:
+                self.traininghistory['Skill'] = \
+                                    np.append(self.traininghistory['Skill'],
+                                              self.update_skill())
+                # NB. self.skill is now up to date.
+                self.traininghistory['PL'] = \
+                                    np.append(self.traininghistory['PL'],
+                                              self.PL)
+                self.traininghistory['PD'] = \
+                                    np.append(self.traininghistory['PD'],
+                                              self.PD)
+
+                self.traininghistory['ItWas'] = \
+                                    np.append(self.traininghistory['ItWas'], 
+                                            actually_it_was_dictionary[it_was])
+
+                self.traininghistory['ActuallyItWas'] = \
+                                np.append(self.traininghistory['ActuallyItWas'],
+                                    actually_it_was_dictionary[actually_it_was])
+
+                self.traininghistory['At_Time'] = \
+                                np.append(self.traininghistory['At_Time'], 
+                                          at_time)
 
         return
 

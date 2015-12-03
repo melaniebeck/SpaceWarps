@@ -4,9 +4,10 @@ import swap
 
 import numpy as np
 import pylab as plt
+import pdb
 
 # Every subject starts with the following probability of being a LENS:
-prior = 2e-4
+#prior = 2e-4
 
 # Every subject starts 50 trajectories. This will slow down the code,
 # but its ok, we can always parallelize
@@ -85,7 +86,8 @@ class Subject(object):
 
 # ----------------------------------------------------------------------
 
-    def __init__(self,ID,ZooID,category,kind,flavor,truth,thresholds,location,prior=2e-4):
+    def __init__(self,ID,ZooID,category,kind,flavor,truth,thresholds,
+                 location,morphdata={},prior=2e-4):
 
         self.ID = ID
         self.ZooID = ZooID
@@ -110,6 +112,17 @@ class Subject(object):
         self.rejection_threshold = thresholds['rejection']
 
         self.location = location
+        
+        if morphdata:
+            self.G = morphdata['G']
+            self.M20 = morphdata['M20']
+            self.C = morphdata['C']
+            self.A = morphdata['A']
+            self.E = morphdata['E']
+        else:
+            self.G = self.M20 = self.C = self.A = self.E = 'nan'
+
+        #print "In subject.__init__:", morphdata
 
         self.annotationhistory = {'Name': np.array([]),
                             'ItWas': np.array([], dtype=int),
@@ -173,24 +186,28 @@ class Subject(object):
 
             # update the annotation history
             if record:
-                as_being_dict = {'LENS': 1, 'NOT': 0}
-                self.annotationhistory['Name'] = np.append(self.annotationhistory['Name'], by.name)
-                self.annotationhistory['ItWas'] = np.append(self.annotationhistory['ItWas'], as_being_dict[as_being])
+                as_being_dict = {'SMOOTH': 1, 'NOT': 0}
+                self.annotationhistory['Name'] = \
+                            np.append(self.annotationhistory['Name'], by.name)
+                self.annotationhistory['ItWas'] = \
+                            np.append(self.annotationhistory['ItWas'], 
+                                      as_being_dict[as_being])
                 self.annotationhistory['At_X'].append(at_x)
                 self.annotationhistory['At_Y'].append(at_y)
-                self.annotationhistory['PL'] = np.append(self.annotationhistory['PL'], by.PL)
-                self.annotationhistory['PD'] = np.append(self.annotationhistory['PD'], by.PD)
+                self.annotationhistory['PL'] = \
+                            np.append(self.annotationhistory['PL'], by.PL)
+                self.annotationhistory['PD'] = \
+                            np.append(self.annotationhistory['PD'], by.PD)
                 self.annotationhistory['At_Time'].append(at_time)
-
         # Deal with active subjects. Ignore the classifier until they
         # have seen NT > a_few_at_the_start (ie they've had a
         # certain amount of training - at least one training image, for example):
 
             if by.NT > a_few_at_the_start:
 
-                # Calculate likelihood for all Ntrajectory trajectories, generating as many binomial deviates
+                # Calculate likelihood for all Ntrajectory trajectories, 
+                # generating as many binomial deviates
                 if realize_confusion:
-
                     PL_realization=by.get_PL_realization(Ntrajectory);
                     PD_realization=by.get_PD_realization(Ntrajectory);
                 else:
@@ -198,42 +215,56 @@ class Subject(object):
                     PD_realization=np.ones(Ntrajectory) * by.PD
                 prior_probability=self.probability*1.0;  # TODO: not used?!
 
-                if as_being == 'LENS':
+                if as_being == 'SMOOTH':
                     likelihood = PL_realization + laplace_smoothing
-                    likelihood /= (PL_realization*self.probability + (1-PD_realization)*(1-self.probability) + 2 * laplace_smoothing)
+                    likelihood /= (PL_realization*self.probability + 
+                                   (1-PD_realization)*(1-self.probability) + \
+                                   2 * laplace_smoothing)
                     as_being_number = 1
 
                 elif as_being == 'NOT':
                     likelihood = (1-PL_realization) + laplace_smoothing
-                    likelihood /= ((1-PL_realization)*self.probability + PD_realization*(1-self.probability) + 2 * laplace_smoothing)
+                    likelihood /= ((1-PL_realization)*self.probability + 
+                                   PD_realization*(1-self.probability) + \
+                                   2 * laplace_smoothing)
                     as_being_number = 0
 
                 else:
-                    raise Exception("Unrecognised classification result: "+as_being)
+                    raise Exception("Unrecognised classification result: "+
+                                    as_being)
 
                 if online:
                     # Update subject:
                     self.probability = likelihood*self.probability
                     idx=np.where(self.probability < swap.pmin)
                     self.probability[idx]=swap.pmin
-                    #if self.probability < swap.pmin: self.probability = swap.pmin
+                    #if self.probability < swap.pmin: 
+                    #self.probability = swap.pmin
                     posterior_probability=self.probability*1.0;
 
-                    self.trajectory = np.append(self.trajectory,self.probability)
+                    self.trajectory = np.append(self.trajectory,
+                                                self.probability)
 
                     self.exposure += 1
 
                     self.update_state(at_time)
 
-                    # Update agent - training history is taken care of in agent.heard(),
-                    # which also keeps agent.skill up to date.
+                    # Update agent - training history is taken care of in 
+                    # agent.heard(), which also keeps agent.skill up to date.
                     if self.kind == 'test' and record:
 
-                         by.testhistory['ID'] = np.append(by.testhistory['ID'], self.ID)
-                         by.testhistory['I'] = np.append(by.testhistory['I'], swap.informationGain(self.mean_probability, by.PL, by.PD, as_being))
-                         by.testhistory['Skill'] = np.append(by.testhistory['Skill'], by.skill)
-                         by.testhistory['ItWas'] = np.append(by.testhistory['ItWas'], as_being_number)
-                         by.testhistory['At_Time'] = np.append(by.testhistory['At_Time'], at_time)
+                         by.testhistory['ID'] = np.append(by.testhistory['ID'],
+                                                          self.ID)
+                         by.testhistory['I'] = np.append(by.testhistory['I'], 
+                                    swap.informationGain(self.mean_probability,
+                                                        by.PL, by.PD, as_being))
+                         by.testhistory['Skill'] = \
+                                    np.append(by.testhistory['Skill'], by.skill)
+                         by.testhistory['ItWas'] = \
+                                np.append(by.testhistory['ItWas'],
+                                          as_being_number)
+                         by.testhistory['At_Time'] = \
+                                np.append(by.testhistory['At_Time'], at_time)
                          by.contribution += by.skill
 
                 else:
@@ -266,7 +297,7 @@ class Subject(object):
                 continue
 
             by = agent
-            as_being = ['NOT', 'LENS'][classification]
+            as_being = ['NOT', 'SMOOTH'][classification]
             likelihood_sum += self.was_described(by=by,as_being=as_being,while_ignoring=while_ignoring,haste=haste,online=False,record=record,realize_confusion=realize_confusion,laplace_smoothing=laplace_smoothing)
             N_classifications_used += 1
         self.probability = likelihood_sum * self.probability / N_classifications_used
