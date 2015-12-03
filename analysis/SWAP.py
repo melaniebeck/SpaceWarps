@@ -6,6 +6,8 @@ import swap
 import sys,getopt,datetime,os,subprocess
 import numpy as np
 import cPickle
+import pdb
+from astropy.table import Table
 
 # ======================================================================
 
@@ -82,7 +84,6 @@ def SWAP(argv):
        print str(err) # will print something like "option -a not recognized"
        print SWAP.__doc__  # will print the big comment above.
        return
-
     for o,a in opts:
        if o in ("-h", "--help"):
           print SWAP.__doc__
@@ -104,6 +105,8 @@ def SWAP(argv):
     # ------------------------------------------------------------------
     # Read in run configuration:
 
+    last = '2009-05-04_00:00:00'
+
     tonights = swap.Configuration(configfile)
 
     # Read the pickled random state file
@@ -118,26 +121,33 @@ def SWAP(argv):
     else:
         print "SWAP: data will be read from the current live Mongo database"
 
-    stage = str(int(tonights.parameters['stage']))
+    stage = str(tonights.parameters['stage'])
     survey = tonights.parameters['survey']
-    print "SWAP: looks like we are on Stage "+stage+" of the ",survey," survey project"
-
+    print "SWAP: looks like we are on Stage "+stage+" of the ",\
+        survey," survey project"
 
     try: supervised = tonights.parameters['supervised']
     except: supervised = False
-    try: supervised_and_unsupervised = tonights.parameters['supervised_and_unsupervised']
-    except: supervised_and_unsupervised = False
+    try: supervised_and_unsupervised = \
+       tonights.parameters['supervised_and_unsupervised']
+    except: 
+        supervised_and_unsupervised = False
+        tonights.parameters['supervised_and_unsupervised']=False
+
     # will agents be able to learn?
     try: agents_willing_to_learn = tonights.parameters['agents_willing_to_learn']
     except: agents_willing_to_learn = False
     if agents_willing_to_learn:
 
         if supervised_and_unsupervised:
-            print "SWAP: agents will use both training AND test data to update their confusion matrices"
+            print "SWAP: agents will use both training AND test data to "\
+                "update their confusion matrices"
         elif supervised:
-            print "SWAP: agents will use training data to update their confusion matrices"
+            print "SWAP: agents will use training data to update their "\
+                "confusion matrices"
         else:
-            print "SWAP: agents will only use test data to update their confusion matrices"
+            print "SWAP: agents will only use test data to update their "\
+                "confusion matrices"
 
         a_few_at_the_start = tonights.parameters['a_few_at_the_start']
         if a_few_at_the_start > 0:
@@ -146,14 +156,17 @@ def SWAP(argv):
 
     else:
         a_few_at_the_start = 0
-        print "SWAP: agents will use fixed confusion matrices without updating them"
+        print "SWAP: agents will use fixed confusion matrices without "\
+            "updating them"
 
 
     waste = tonights.parameters['hasty']
     if waste:
-        print "SWAP: agents will ignore the classifications of rejected subjects"
+        print "SWAP: agents will ignore the classifications of "\
+            "rejected subjects"
     else:
-        print "SWAP: agents will use all classifications, even of rejected subjects"
+        print "SWAP: agents will use all classifications, even of "\
+            "rejected subjects"
 
 
     vb = tonights.parameters['verbose']
@@ -162,47 +175,58 @@ def SWAP(argv):
     one_by_one = tonights.parameters['one_by_one']
 
     report = tonights.parameters['report']
+    plots = tonights.parameters['plot']
     if report:
-        print "SWAP: will make plots and write report at the end"
+        print "SWAP: will write a report at the end"
     else:
         print "SWAP: postponing reporting until the last minute"
 
     # From when shall we take classifications to analyze?
     if tonights.parameters['start'] == 'the_beginning':
         t1 = datetime.datetime(1978, 2, 28, 12, 0, 0, 0)
-    elif tonights.parameters['start'] == 'dont_bother':
+    elif (tonights.parameters['start'] == 'dont_bother') or \
+         (tonights.parameters['start'] == last):
         print "SWAP: looks like there is nothing more to do!"
         swap.set_cookie(False)
         print swap.doubledashedline
         return
     else:
-        t1 = datetime.datetime.strptime(tonights.parameters['start'], '%Y-%m-%d_%H:%M:%S')
-    print "SWAP: updating all subjects classified between "+tonights.parameters['start']
+        t1 = datetime.datetime.strptime(tonights.parameters['start'],
+                                        '%Y-%m-%d_%H:%M:%S')
+    print "SWAP: updating all subjects classified between "+\
+        tonights.parameters['start']
 
     # When will we stop considering classifications?
     if tonights.parameters['end'] == 'the_end_of_time':
         t2 = datetime.datetime(2100, 1, 1, 12, 0, 0, 0)
     else:
-        t2 = datetime.datetime.strptime(tonights.parameters['end'], '%Y-%m-%d_%H:%M:%S')
+        t2 = datetime.datetime.strptime(tonights.parameters['end'], 
+                                        '%Y-%m-%d_%H:%M:%S')
     print "SWAP: and "+tonights.parameters['end']
 
     # How many classifications do we look at per batch?
     try: N_per_batch = tonights.parameters['N_per_batch']
     except: N_per_batch = 5000000
-    print "SWAP: setting the number of classifications made in this batch to ",N_per_batch
+    print "SWAP: setting the number of classifications made in this "\
+        "batch to ",N_per_batch
 
     # How will we decide if a sim has been seen?
-    try: use_marker_positions = tonights.parameters['use_marker_positions']
-    except: use_marker_positions = False
-    print "SWAP: should we use the marker positions on sims? ",use_marker_positions
+    #try: use_marker_positions = tonights.parameters['use_marker_positions']
+    #except: use_marker_positions = False
+    #print "SWAP: should we use the marker positions on sims? ",use_marker_positions
 
-    try: prior = tonights.parameters['prior']
-    except: prior = 2e-4
+    try: 
+        prior = tonights.parameters['prior']
+    except: 
+        #prior = 2e-4
+        tonights.parameters['prior'] = prior
     print "SWAP: set prior for analysis to ",prior
 
     # Will we do offline analysis?
     try: offline = tonights.parameters['offline']
-    except: offline = False
+    except: 
+        offline = False
+        tonights.parameters['offline']=False
     print "SWAP: should we do offline analysis? ",offline
 
     # How will we make decisions based on probability?
@@ -235,22 +259,23 @@ def SWAP(argv):
         print "SWAP: database has ",db.size()," Toy classifications"
         print "SWAP: of ",db.surveysize," Toy subjects"
         print "SWAP: made by ",db.population," Toy classifiers"
-        print "SWAP: where each classifier makes ",db.enthusiasm," classifications, on average"
+        print "SWAP: where each classifier makes ",db.enthusiasm,\
+            " classifications, on average"
 
     else:
-
-        db = swap.MongoDB()
+        #db = swap.MongoDB()
+        db = swap.MySQLdb()
 
     # Read in a batch of classifications, made since the aforementioned
     # start time:
 
-    batch = db.find('since',t1)
+    batch = db.find('between',t1,t2)  
+    #batch = db.find('before', t2)
+    print "SWAP: found %i classifications for this batch"%len(batch)
 
-    # Actually, batch is a cursor, now set to the first classification
-    # after time t1. Maybe this could be a Kafka cursor instead? And then
-    # all of this could be in an infinite loop? Hmm - we'd still want to
-    # produce some output periodically - but this should be done by querying
-    # the bureau and sample databases, separately from SWAP.
+    # read in a file of all galaxies which includes a designation if 
+    # that galaxy is part of the NAIR catalog
+    subjects = Table.read('GZ2assets_Nair_Morph.fits')
 
     # ------------------------------------------------------------------
 
@@ -264,22 +289,17 @@ def SWAP(argv):
         if one_by_one: next = raw_input()
 
         # Get the vitals for this classification:
-        items = db.digest(classification,survey,method=use_marker_positions)
+        items = db.digest(classification,survey,subjects)
         if vb: print "#"+str(count+1)+". items = ",items
         if items is None:
-            continue # Tutorial subjects fail, as do stage/project mismatches!
-        # t,Name,ID,ZooID,category,kind,X,Y,location,thisstage,P = items
-        # X, Y: result,truth (LENS,NOT,UNKNOWN)
-        # CPD 31.5.14: added annotation_x, annotation_y : locations of clicks
-        # PJM 20014-08-21: added "flavor" of subject, 'lensing cluster', len
-        tstring,Name,ID,ZooID,category,kind,flavor,X,Y,location,classification_stage,at_x,at_y = items
+            continue 
 
-        # this is probably bad form:
-        at_x = eval(at_x)
-        at_y = eval(at_y)
+        tstring,Name,ID,ZooID,category,kind,flavor,X,Y,location,morphdata=items
+        #classification_stage,at_x,at_y
 
         t = datetime.datetime.strptime(tstring, '%Y-%m-%d_%H:%M:%S')
 
+        '''
         # If the stage of this classification does not match the stage we are
         # on, skip to the next one!
         if classification_stage != stage:
@@ -291,6 +311,7 @@ def SWAP(argv):
             if vb:
                 print "Found classification from this stage: ",items
                 print " "
+        '''
 
         # Break out if we've reached the time limit:
         if t > t2:
@@ -304,47 +325,70 @@ def SWAP(argv):
         # Register newly-classified subjects:
         # Old, slow code: if ID not in sample.list():
         try: test = sample.member[ID]
-        except: sample.member[ID] = swap.Subject(ID,ZooID,category,kind,flavor,Y,thresholds,location,prior=prior)
+        except: sample.member[ID] = swap.Subject(ID,ZooID,category,kind,
+                                                 flavor,Y,thresholds,location,
+                                                 morphdata, prior=prior)
 
         # Update the subject's lens probability using input from the
         # classifier. We send that classifier's agent to the subject
         # to do this.
-        sample.member[ID].was_described(by=bureau.member[Name],as_being=X,at_time=tstring,while_ignoring=a_few_at_the_start,haste=waste,at_x=at_x,at_y=at_y)
+        sample.member[ID].was_described(by=bureau.member[Name],as_being=X,
+                                        at_time=tstring, while_ignoring=
+                                        a_few_at_the_start, haste=waste)
 
         # Update the agent's confusion matrix, based on what it heard:
 
         P = sample.member[ID].mean_probability
 
-
         if supervised_and_unsupervised:
+            print "supervised_and_unsupervised? Bad SWAP."
             # use both training and test images
-            if agents_willing_to_learn * ((category == 'test') + (category == 'training')):
-                bureau.member[Name].heard(it_was=X,actually_it_was=Y,with_probability=P,ignore=False,ID=ID,at_time=tstring)
+            if agents_willing_to_learn * ((category == 'test') + \
+                                          (category == 'training')):
+                bureau.member[Name].heard(it_was=X,actually_it_was=Y,
+                                          with_probability=P,ignore=False,
+                                          ID=ID,at_time=tstring)
             elif ((category == 'test') + (category == 'training')):
-                bureau.member[Name].heard(it_was=X,actually_it_was=Y,with_probability=P,ignore=True,ID=ID,at_time=tstring)
+                bureau.member[Name].heard(it_was=X,actually_it_was=Y,
+                                          with_probability=P,ignore=True,
+                                          ID=ID,at_time=tstring)
         elif supervised:
             # Only use training images!
             if category == 'training' and agents_willing_to_learn:
-                bureau.member[Name].heard(it_was=X,actually_it_was=Y,with_probability=P,ignore=False,ID=ID,at_time=tstring)
+                bureau.member[Name].heard(it_was=X,actually_it_was=Y,
+                                          with_probability=P,ignore=False,
+                                          ID=ID,at_time=tstring)
             elif category == 'training':
-                bureau.member[Name].heard(it_was=X,actually_it_was=Y,with_probability=P,ignore=True,ID=ID,at_time=tstring)
+                print "Um... no, SWAP. Just no."
+                bureau.member[Name].heard(it_was=X,actually_it_was=Y,
+                                          with_probability=P,ignore=True,
+                                          ID=ID,at_time=tstring)
         else:
+            print "What the hell am I doing in here?!"
             # Unsupervised: ignore all the training images...
             if category == 'test' and agents_willing_to_learn:
-                bureau.member[Name].heard(it_was=X,actually_it_was=Y,with_probability=P,ignore=False,ID=ID,at_time=tstring)
+                bureau.member[Name].heard(it_was=X,actually_it_was=Y,
+                                          with_probability=P,ignore=False,
+                                          ID=ID,at_time=tstring)
             elif category == 'test':
-                bureau.member[Name].heard(it_was=X,actually_it_was=Y,with_probability=P,ignore=True,ID=ID,at_time=tstring)
-
+                bureau.member[Name].heard(it_was=X,actually_it_was=Y,
+                                          with_probability=P,ignore=True,
+                                          ID=ID,at_time=tstring)
 
         # Brag about it:
         count += 1
         if vb:
             print swap.dashedline
-            print "SWAP: Subject "+ID+" was classified by "+Name+" during Stage ",stage
-            print "SWAP: he/she said "+X+" when it was actually "+Y+", with Pr(LENS) = "+str(P)
-            print "SWAP: their agent reckons their contribution (in bits) = ",bureau.member[Name].contribution
-            print "SWAP: while estimating their PL,PD as ",bureau.member[Name].PL,bureau.member[Name].PD
-            print "SWAP: and the subject's new probability as ",sample.member[ID].probability
+            print "SWAP: Subject "+ID+" was classified by "+Name+\
+                " during Stage ",stage
+            print "SWAP: he/she said "+X+" when it was actually "+Y+\
+                ", with Pr(LENS) = "+str(P)
+            print "SWAP: their agent reckons their contribution (in bits) = ",\
+                bureau.member[Name].contribution
+            print "SWAP: while estimating their PL,PD as ",\
+                bureau.member[Name].PL,bureau.member[Name].PD
+            print "SWAP: and the subject's new probability as ",\
+                sample.member[ID].probability
         else:
             # Count up to 74 in dots:
             if count == 1: sys.stdout.write('SWAP: ')
@@ -367,115 +411,8 @@ def SWAP(argv):
     print "SWAP: total no. of classifications processed: ",count
 
     #-------------------------------------------------------------------------
-
-    # Now do offline analysis
-    if offline:
-        # for each step in EM algorithm, construct agents and classifications
-        # list
-        # will also need to set probabilities to prior_probability and such
-        # before the algorithm is run
-
-        # some settings that I guess you could configure but these work fine enough
-        initialPL = tonights.parameters['initialPL']
-        initialPD = tonights.parameters['initialPD']
-        N_min = 40   # min number of EM steps required
-        N_max = 100  # max number of EM steps allowed
-        # TODO: make the epsilons be in logit terms?
-        epsilon_min = 1e-6  # average change in probabilities before we claim convergence
-        epsilon_taus = 10  # initial value
-        N_try = 0  # initial value
-        epsilon_list = []
-
-        print "SWAP: offline: resetting prior probability to ",prior
-        for ID in sample.list():
-            sample.member[ID].probability = prior
-            sample.member[ID].update_state()
-        print "SWAP: offline: resetting PL and PDs to ",initialPL,initialPD
-        for ID in bureau.list():
-            bureau.member[ID].PD = initialPD
-            bureau.member[ID].PL = initialPL
-
-        print "SWAP: offline: running EM"
-        while (epsilon_taus > epsilon_min) * (N_try < N_max) + (N_try < N_min):
-
-            # do E step
-            epsilon_taus = 0
-            num_taus = 0
-            for ID in sample.list():
-                annotationhistory = sample.member[ID].annotationhistory
-                names = annotationhistory['Name']
-                classifications = annotationhistory['ItWas']
-                if len(names) > 0:
-                    old_probability = sample.member[ID].mean_probability
-                    if supervised_and_unsupervised:
-                        laplace_smoothing = 0
-                    elif supervised:
-                        laplace_smoothing = 0
-                    else:
-                        laplace_smoothing = 0
-
-                    sample.member[ID].was_described_many_times(bureau, names, classifications, realize_confusion=False, laplace_smoothing=laplace_smoothing)  # not doing the binomial realization
-                    epsilon_taus += (sample.member[ID].mean_probability - old_probability) ** 2
-                    num_taus += 1
-
-            # divide epsilon_taus by the number of taus
-            epsilon_taus = np.sqrt(epsilon_taus) * 1. / num_taus
-
-            # do M step
-            # I am PRETTY sure this is inefficient!
-            for ID in bureau.list():
-                agent = bureau.member[ID]
-                if supervised_and_unsupervised:
-                    # supervised learning AND unsupervised
-                    # use perfect training in M step
-                    # use test info in M step
-                    classifications_train = agent.traininghistory['ItWas']
-                    probabilities_train = []
-                    for Subj_ID in agent.traininghistory['ID']:
-                        if sample.member[Subj_ID].kind == 'test':
-                            probabilities_train.append(sample.member[Subj_ID].mean_probability)
-                        elif sample.member[Subj_ID].kind == 'sim':
-                            probabilities_train.append(1.0)
-                        elif sample.member[Subj_ID].kind == 'dud':
-                            probabilities_train.append(0)
-                    probabilities_train = np.array(probabilities_train)
-
-                    classifications_test = agent.testhistory['ItWas']
-                    probabilities_test = []
-                    for Subj_ID in agent.testhistory['ID']:
-                        probabilities_test.append(sample.member[Subj_ID].mean_probability)
-                    probabilities_test = np.array(probabilities_test)
-
-                    probabilities = np.append(probabilities_train, probabilities_test)
-                    classifications = np.append(classifications_train, classifications_test)
-                elif supervised:
-                    # supervised learning
-                    # use perfect training in M step
-                    # DONT use test info in M step
-                    probabilities = agent.traininghistory['ActuallyItWas']
-                    classifications = agent.traininghistory['ItWas']
-
-                else:
-                    # totally unsupervised
-                    # DONT use perfect training in M step
-                    # use test info in M step
-                    classifications = agent.testhistory['ItWas']
-                    probabilities = []
-                    for Subj_ID in agent.testhistory['ID']:
-                        probabilities.append(sample.member[Subj_ID].mean_probability)
-                    probabilities = np.array(probabilities)
-
-                bureau.member[ID].heard_many_times(probabilities, classifications)
-            # done with the EM steps! add one to the tally of tries
-            N_try += 1
-
-        # done with EM! collect probabilities in the bureau
-        bureau.collect_probabilities()
-
-        # repeat for the sample
-        for kind in ['sim', 'dud', 'test']:
-            sample.collect_probabilities(kind)
-
+    # offline.py goes here
+    #-------------------------------------------------------------------------
 
     # All good things come to an end:
     if count == 0:
@@ -483,22 +420,17 @@ def SWAP(argv):
         t = t1
         more_to_do = False
         # return
-    elif count < count_max: # ie we didn't make it through the whole batch  this time!
-        more_to_do = False
+    #elif count < count_max: # ie we didn't make it through the whole batch  this time!
+    #more_to_do = False
     else:
         more_to_do = True
-
 
     # ------------------------------------------------------------------
 
     # Set up outputs based on where we got to.
 
-    # And what will we call the new files we make? Use the first
-    # classification timestamp!
-    tonights.parameters['finish'] = t1.strftime('%Y-%m-%d_%H:%M:%S')
-
-    # Let's also update the start parameter, ready for next time:
-    tonights.parameters['start'] = tstring
+    # And what will we call the new files we make? Use the Start Time
+    tonights.parameters['finish'] = tonights.parameters['start']
 
     # Use the following directory for output lists and plots:
     tonights.parameters['trunk'] = \
@@ -542,63 +474,99 @@ def SWAP(argv):
         # classifications. Note that what is needed here is the ZooID,
         # not the subject ID:
 
-        new_retirementfile = swap.get_new_filename(tonights.parameters,'retire_these')
+        new_retirementfile = swap.get_new_filename(tonights.parameters,\
+                                                   'retire_these')
         print "SWAP: saving retiree subject Zooniverse IDs..."
         N = swap.write_list(sample,new_retirementfile,item='retired_subject')
         print "SWAP: "+str(N)+" lines written to "+new_retirementfile
 
         # Also print out lists of detections etc! These are urls of images.
-
+        # ----------------------------------------------------------------
         new_samplefile = swap.get_new_filename(tonights.parameters,'candidates')
         print "SWAP: saving lens candidates..."
         N = swap.write_list(sample,new_samplefile,item='candidate')
         print "SWAP: "+str(N)+" lines written to "+new_samplefile
 
         # Now save the training images, for inspection:
-        new_samplefile = swap.get_new_filename(tonights.parameters,'training_true_positives')
+        new_samplefile = swap.get_new_filename(tonights.parameters,\
+                                               'training_true_positives')
         print "SWAP: saving true positives..."
         N = swap.write_list(sample,new_samplefile,item='true_positive')
         print "SWAP: "+str(N)+" lines written to "+new_samplefile
 
-        new_samplefile = swap.get_new_filename(tonights.parameters,'training_false_positives')
+        new_samplefile = swap.get_new_filename(tonights.parameters,\
+                                               'training_false_positives')
         print "SWAP: saving false positives..."
         N = swap.write_list(sample,new_samplefile,item='false_positive')
         print "SWAP: "+str(N)+" lines written to "+new_samplefile
 
-        new_samplefile = swap.get_new_filename(tonights.parameters,'training_false_negatives')
+        new_samplefile = swap.get_new_filename(tonights.parameters,\
+                                               'training_false_negatives')
         print "SWAP: saving false negatives..."
         N = swap.write_list(sample,new_samplefile,item='false_negative')
         print "SWAP: "+str(N)+" lines written to "+new_samplefile
 
         # Also write out catalogs of subjects, including the ZooID, subject ID,
         # how many classifications, and probability:
-
+        # -------------------------------------------------------------------
         catalog = swap.get_new_filename(tonights.parameters,'candidate_catalog')
         print "SWAP: saving catalog of high probability subjects..."
-        Nlenses,Nsubjects = swap.write_catalog(sample,catalog,thresholds,kind='test')
+        Nlenses,Nsubjects = swap.write_catalog(sample,bureau,catalog,
+                                               thresholds,kind='test')
         print "SWAP: From "+str(Nsubjects)+" subjects classified,"
-        print "SWAP: "+str(Nlenses)+" candidates (with P > rejection) written to "+catalog
+        print "SWAP: "+str(Nlenses)+" candidates (with P > rejection) "\
+            "written to "+catalog
 
         catalog = swap.get_new_filename(tonights.parameters,'sim_catalog')
         print "SWAP: saving catalog of high probability subjects..."
-        Nsims,Nsubjects = swap.write_catalog(sample,catalog,thresholds,kind='sim')
+        Nsims,Nsubjects = swap.write_catalog(sample,bureau,catalog,
+                                             thresholds,kind='sim')
         print "SWAP: From "+str(Nsubjects)+" subjects classified,"
-        print "SWAP: "+str(Nsims)+" sim 'candidates' (with P > rejection) written to "+catalog
+        print "SWAP: "+str(Nsims)+" sim 'candidates' (with P > "\
+            "rejection) written to "+catalog
 
         catalog = swap.get_new_filename(tonights.parameters,'dud_catalog')
         print "SWAP: saving catalog of high probability subjects..."
-        Nduds,Nsubjects = swap.write_catalog(sample,catalog,thresholds,kind='dud')
+        Nduds,Nsubjects = swap.write_catalog(sample,bureau,catalog,
+                                             thresholds,kind='dud')
         print "SWAP: From "+str(Nsubjects)+" subjects classified,"
-        print "SWAP: "+str(Nduds)+" dud 'candidates' (with P > rejection) written to "+catalog
+        print "SWAP: "+str(Nduds)+" dud 'candidates' (with P > "\
+            "rejection) written to "+catalog
 
+        catalog =swap.get_new_filename(tonights.parameters,'retired_catalog')
+        print "SWAP: saving catalog of retired subjects..."
+        Nretired, Nsubjects = swap.write_catalog(sample,bureau,catalog,
+                                                 thresholds,kind='rejected')
+        print "SWAP: From "+str(Nsubjects)+" subjects classified,"
+        print "SWAP: "+str(Nretired)+" retired (with P < rejection) "\
+            "written to "+catalog
+       
+        catalog =swap.get_new_filename(tonights.parameters,'detected_catalog')
+        print "SWAP: saving catalog of detected subjects..."
+        Ndetected, Nsubjects = swap.write_catalog(sample,bureau,catalog,
+                                                  thresholds,kind='detected')
+        print "SWAP: From "+str(Nsubjects)+" subjects classified,"
+        print "SWAP: "+str(Ndetected)+" detected (with P > acceptance) "\
+            "written to "+catalog        
 
     # ------------------------------------------------------------------
     # Now, if there is more to do, over-write the update.config file so
     # that we can carry on where we left off. Note that the pars are
     # already updated! :-)
 
-    if not more_to_do:
-        tonights.parameters['start'] = tstring
+    d = datetime.timedelta(days=1)
+    if more_to_do:
+        last = datetime.datetime.strptime(last, '%Y-%m-%d_%H:%M:%S')
+        tonights.parameters['start']=tonights.parameters['end']
+        if t2 + d > last: 
+            end = last
+            swap.set_cookie(False)
+            plots = True
+        else: 
+            end = t2 + d
+            swap.set_cookie(True)
+        tonights.parameters['end'] = end.strftime('%Y-%m-%d_%H:%M:%S')
+    else:
         swap.set_cookie(False)
     # SWAPSHOP will read this cookie and act accordingly.
 
@@ -610,13 +578,12 @@ def SWAP(argv):
     random_state = np.random.get_state();
     cPickle.dump(random_state,random_file);
     random_file.close();
-
     swap.write_config(configfile, tonights.parameters)
 
 
     # ------------------------------------------------------------------
 
-    if report:
+    if plots:
 
         # Make plots! Can't plot everything - uniformly sample 200 of each
         # thing (agent or subject).
@@ -668,7 +635,7 @@ def SWAP(argv):
         pngfile = swap.get_new_filename(tonights.parameters,'sample')
 
         # BigN = 100000 # Would get them all...
-        BigN = 500      # Can't see them all!
+        BigN = 100      # Can't see them all!
         candidates = []
         candidates += sample.shortlist(BigN,kind='test',status='detected')
         candidates += sample.shortlist(BigN,kind='test',status='undecided')
