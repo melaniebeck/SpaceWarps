@@ -42,4 +42,18 @@ There are a series of `explore_*.py` scripts that look at the output of the SWAP
 * Once the above is implemented, run the first LIVE test of SWAP + MachineClassifier (tests so far have had MC in 'offline' mode.
 
 
+### Experiments to run
+A slew of simulations (with and without MC) need to be run to explore the parameter space of SWAP. Parameters of interest include the acceptance and rejectance thresholds, the prior, and the initialPL and initialPD of user-agents
+* Are # classifications relatively immune to initialPL and initialPD values? Vary PL/PD between .55 - .8
+* Does it matter if PL and PD are the same or different?
+* How drastically do classifications change when rejectance/acceptance thresholds change?
+* What affect does the initial prior have? (currently set at 0.3)
+
+Work should also be done on other questions in the GZ2 decision tree. 
+* Bar or Not?  (task 3)
+* Spiral arms or Not? (task 4)
+* Bulge or Not? (task 5)
+* Edge on or Not? (task 2)
+
+
 
