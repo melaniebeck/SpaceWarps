@@ -6,7 +6,7 @@ SWAP.py or SWAPSHOP.py run the SWAP code on GZ2 in single or batch modes respect
 GZ2 classifications are stored in an MySQL database. `swap/mysqldb.py` was created to pull classifications from this database instead of the Space Warps `swap/mongodb.py`.
 In order to reduce the time of each SQL query, tables in the GZ2 db were joined before running SWAP. The script for the particular arrangement can be found in `prepare_gz2sql.py`. 
 
-
+SWAP has been modified to run on a "daily" basis whereby all classification on a given day in the original GZ2 database are selected and processed. When running with SWAPSHOP, SWAP processes each day's data after which the day is automatically updated until hitting a point defined by the user in the `last` variable on line 108 in SWAP.py. 
 
 
 
