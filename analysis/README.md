@@ -11,9 +11,9 @@ SWAP has been modified to run on a "daily" basis whereby all classifications on 
 
 For each night, SWAP creates a slew of output files: 
 
-    SURVEY_Y-D-H_00:00:00_candidate_catalog.txt # any subject which has been classified
+    SURVEY_Y-D-H_00:00:00_candidate_catalog.txt     # any subject which has been classified
     SURVEY_Y-D-H_00:00:00_candidates.txt        
-    SURVEY_Y-D-H_00:00:00_detected_catalog.txt  # any subject which has crossed the acceptance threshold
+    SURVEY_Y-D-H_00:00:00_detected_catalog.txt      # any subject which has crossed the acceptance threshold
     SURVEY_Y-D-H_00:00:00_dud_catalog.txt       
     SURVEY_Y-D-H_00:00:00_machine_testsample.fits   # remaining test sample for that night
     SURVEY_Y-D-H_00:00:00_machine.txt               # machine output: predictions & probabilities
