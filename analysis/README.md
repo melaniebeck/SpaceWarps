@@ -37,5 +37,9 @@ Additionally, MachineClassifier requires a pre-made catalog called `GZ2assets_Na
 There are a series of `explore_*.py` scripts that look at the output of the SWAP/Machine simulations. These require some of the output files described above (those with comments next to them) in addition to the `SURVEY_*.pickle` files. 
 
 
+### What needs to be done:
+* Determine how the Machine retires (threshold); flag retired galaxies so they are no longer processed through SWAP (This is being developed/explored in `explore_machine.py`)
+* Once the above is implemented, run the first LIVE test of SWAP + MachineClassifier (tests so far have had MC in 'offline' mode.
+
 
 
