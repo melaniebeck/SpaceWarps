@@ -1,4 +1,17 @@
+# SWAP has been modified to perform retrospective simulations on Galaxy Zoo 2
 
+SWAP.py or SWAPSHOP.py run the SWAP code on GZ2 in single or batch modes respectively.
+
+The GZ2 database is currently in SQL thus swap/mysqldb.py was created to pull classifications from the db instead of swap/mongodb.py.
+In order to reduce the time of each SQL query, tables in the GZ2 db were joined before running SWAP. The script for the particular arrangement can be found in prepare_gz2sql.py
+
+
+
+
+
+
+
+# ------------------------------------------------------------------------------
 # Getting Started
 
 Zooniverse classifications are stored in a Mongo database. To access raw classifications you need dumps from Mongo.  The two relevant collections are `spacewarps_subjects` and `spacewarps_classifications`.

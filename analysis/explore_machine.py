@@ -138,9 +138,9 @@ def main(options, args):
 
     total, fraction = np.array([]), np.array([])
     completeness, contamination, false_positive_rate = [], [], []
-    good_smooth, good_not, fraction_smooth, fraction_not = [],[],[],[]
-    bad_smooth, bad_not = [],[]
-    fraction_good_smooth, fraction_good_not = [], []
+    match_smooth_above_thresh,  match_not_above_thresh = [], []
+    predict_smooth_above_thresh, predict_not_above_thresh = [], []
+    match_smooth, match_not = [], []
     good_smooth_idx, good_not_idx = {}, {}
     night = 16
     for directory in directories[:8]:
@@ -174,38 +174,30 @@ def main(options, args):
         predictions, truth = machine['prediction'], truth['truth']
         probabilities = machine['smooth%','not%']
         
-        # Smooth MATCHES ABOVE THRESHOLD (retire these?)
-        match_smooth = ((predictions==1) & (truth==1) & 
-                        (probabilities['smooth%']>=threshold))
-        num_smooth = np.sum(match_smooth)
-        good_smooth.append(num_smooth)
+        """------------------- MATCHES ABOVE THRESHOLD -----------------------"""
+        msat = ((predictions==1) & (truth==1) & (probabilities['smooth%']>=threshold))
+        match_smooth_above_thresh.append(np.sum(msat))
 
-        # Smooth ABOVE THRESHOLD
-        smooth_above_thresh = ((predictions==1)&(probabilities['smooth%']>=threshold))
-        bad_smooth.append(np.sum(smooth_above_thresh))
+        mnat = ((predictions==0) & (truth==0) & (probabilities['not%']>=threshold)) 
+        match_not_above_thresh.append( np.sum(mnat))
 
-        # Not MATCHES ABOVE THRESHOLD (retire these?)
-        match_not = ((predictions==0) & (truth==0) & 
-                     (probabilities['not%']>=threshold)) 
-        num_not = np.sum(match_not)
-        good_not.append(num_not)
+        """----------------- PREDICTIONS ABOVE THRESHOLD ---------------------"""
+        psat = ((predictions==1)&(probabilities['smooth%']>=threshold))
+        predict_smooth_above_thresh.append(np.sum(psat))
 
-        # Not ABOVE THRESHOLD
-        nots_above_thresh = ((predictions==0)&(probabilities['not%']>=threshold))
-        bad_not.append(np.sum(nots_above_thresh))
-        
-        # Ratio SMOOTH MATCHES ABOVE THRESHOLD over SMOOTH MATCHES
-        fraction_smooth.append(num_smooth*1./np.sum(((predictions==1)&(truth==1))))
-        # Ratio NOT MATCHES ABOVE THRESHOLD over NOT MATCHES
-        fraction_not.append(num_not*1./np.sum(((predictions==0) & (truth==0))))
-        
+        pnat = ((predictions==0)&(probabilities['not%']>=threshold))
+        predict_not_above_thresh.append(np.sum(pnat))
+
+        """------------------------ TOTAL MATCHES ----------------------------"""
+        match_smooth.append(np.sum(((predictions==1) & (truth==1))))
+        match_not.append(np.sum(((predictions==0) & (truth==0))))
+
         # Indexes of SMOOTH MATCHES ABOVE THRESHOLD
         good_smooth_idx['night_%i'%night] = match_smooth
         # Indexes of NOT MATCHES ABOVE THRESHOLD
         good_not_idx['night_%i'%night] = match_not
         night+=1
 
-       
         [comp, cont, fpr] = completeness_contamination(predictions, truth)
         completeness.append(comp)
         contamination.append(cont)
@@ -213,6 +205,16 @@ def main(options, args):
         #pdb.set_trace()
 
     
+    # Ratio of MATCHES / PREDICTIONS (above threshold: AT)
+    match_predict_AT_smooth = np.array(match_smooth_above_thresh)*1./\
+                              np.array(predict_smooth_above_thresh)
+    match_predict_AT_not = np.array(match_not_above_thresh)*1./\
+                           np.array(predict_not_above_thresh)
+
+    # Ratio of MATCHES AT / TOTAL MATCHES
+    match_AT_totmatch_smooth = np.array(match_smooth_above_thresh)*1./np.array(match_smooth)
+    match_AT_totmatch_not = np.array(match_not_above_thresh)*1./np.array(match_not)
+
     pdb.set_trace()
 
     fig = plt.figure(figsize=(10,10))
