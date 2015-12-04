@@ -10,6 +10,7 @@ In order to reduce the time of each SQL query, tables in the GZ2 db were joined 
 SWAP has been modified to run on a "daily" basis whereby all classifications on a given day in the original GZ2 database are selected and processed. When running with SWAPSHOP, SWAP processes each day's data after which the day is automatically updated until hitting a point defined by the user in the `last` variable on line 108 in SWAP.py. 
 
 For each night, SWAP creates a slew of output files: 
+
     SURVEY_Y-D-H_00:00:00_candidate_catalog.txt
     SURVEY_Y-D-H_00:00:00_candidates.txt
     SURVEY_Y-D-H_00:00:00_detected_catalog.txt
