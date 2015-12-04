@@ -95,7 +95,8 @@ def MachineClassifier(options, args):
     if options.offline:
         # read in a slew of directories
         try:
-            directories = subprocess.check_output("ls -d -1 $PWD/%s/%s*/"%(subdir,survey),
+            directories = subprocess.check_output("ls -d -1 $PWD/%s/%s*/"\
+                                                  %(subdir,survey),
                                                   stderr=subprocess.STDOUT,
                                                   shell=True).splitlines()
         except subprocess.CalledProcessError:
@@ -117,7 +118,7 @@ def MachineClassifier(options, args):
     subjects = Table.read('GZ2assets_Nair_Morph_zoo2Main.fits')
 
     test_subjects, test_sample = extract_training(subjects, 
-                                                  keys=['M20','C','elipt','A','G'])
+                                            keys=['M20','C','elipt','A','G'])
 
 
     # Read in the Catalogs (training data) -- "retired" and "candidate" catalogs
@@ -192,9 +193,9 @@ def MachineClassifier(options, args):
                 #weights = np.append(weights, 1.-p)
 
 
-        # Finally, test_sample contains EVERYTHING -- pull out those that are in the
-        # training sample -- don't want overfitting
-        # find dr7objids in test_subjects which match zooids in training_subjects
+        # Finally, test_sample contains EVERYTHING -- 
+        # pull out those that are in the training sample -- don't overfit
+        # find dr7objids in test_subjects that match zooids in training_subjects
         test_idx, train_idx = [], []
         for i,num in enumerate(test_subjects['dr7objid']):
             if num not in training_subjects['zooid']:
@@ -203,12 +204,14 @@ def MachineClassifier(options, args):
         test_sample_final = test_sample[test_idx]
         print "Test sample consists of %i subjects"%len(test_sample_final)
 
-        # save the abreviated test sample for processing later with explore_machine.py
+        # save the abbreviated test sample for processing later with 
+        # explore_machine.py
         outfile = '%s%s_machine_testsample.fits'%(directory,trunk)
         thingy = test_subjects[test_idx]
         Table.write(thingy, outfile, format='fits', overwrite=True)
 
-        predictions, probabilities = runKNC(training_sample, labels, test_sample_final)
+        predictions, probabilities = runKNC(training_sample, labels, 
+                                            test_sample_final)
         
         # read out results of ML to file ... 
         # In order to be "Like SWAP", need to figure out which subjects can be
