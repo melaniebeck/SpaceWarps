@@ -40,6 +40,7 @@ There are a series of `explore_*.py` scripts that look at the output of the SWAP
 ### What needs to be done:
 * Determine how the Machine retires (threshold); flag retired galaxies so they are no longer processed through SWAP (This is being developed/explored in `explore_machine.py`)
 * Once the above is implemented, run the first LIVE test of SWAP + MachineClassifier (tests so far have had MC in 'offline' mode.
+* Try: Instead of using candidate and rejected catalogs - try detected and rejected catalogs? Within a few days there are so many classifications being processed by SWAP that the training sample becomes huge and the test sample miserably small. 
 
 
 ### Experiments to run
