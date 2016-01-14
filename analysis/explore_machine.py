@@ -116,7 +116,8 @@ def main(options, args):
     if options.offline:
         # read in a slew of directories
         try:
-            directories = subprocess.check_output("ls -d $PWD/sup_run4/%s*/"%survey,
+            directories = subprocess.check_output("ls -d $PWD/sup_run4/%s*/"\
+                                                  %survey,
                                                   stderr=subprocess.STDOUT,
                                                   shell=True).splitlines()
         except subprocess.CalledProcessError:
@@ -174,21 +175,23 @@ def main(options, args):
         predictions, truth = machine['prediction'], truth['truth']
         probabilities = machine['smooth%','not%']
         
-        """------------------- MATCHES ABOVE THRESHOLD -----------------------"""
-        msat = ((predictions==1) & (truth==1) & (probabilities['smooth%']>=threshold))
+        """------------------ MATCHES ABOVE THRESHOLD ----------------------"""
+        msat = ((predictions==1) & (truth==1) &
+                (probabilities['smooth%']>=threshold))
         match_smooth_above_thresh.append(np.sum(msat))
 
-        mnat = ((predictions==0) & (truth==0) & (probabilities['not%']>=threshold)) 
+        mnat = ((predictions==0) & (truth==0) & 
+                (probabilities['not%']>=threshold)) 
         match_not_above_thresh.append( np.sum(mnat))
 
-        """----------------- PREDICTIONS ABOVE THRESHOLD ---------------------"""
+        """---------------- PREDICTIONS ABOVE THRESHOLD --------------------"""
         psat = ((predictions==1)&(probabilities['smooth%']>=threshold))
         predict_smooth_above_thresh.append(np.sum(psat))
 
         pnat = ((predictions==0)&(probabilities['not%']>=threshold))
         predict_not_above_thresh.append(np.sum(pnat))
 
-        """------------------------ TOTAL MATCHES ----------------------------"""
+        """----------------------- TOTAL MATCHES ---------------------------"""
         match_smooth.append(np.sum(((predictions==1) & (truth==1))))
         match_not.append(np.sum(((predictions==0) & (truth==0))))
 
