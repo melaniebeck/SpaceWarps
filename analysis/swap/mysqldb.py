@@ -75,13 +75,6 @@ class MySQLdb(object):
         return batch
 
 
-    def find_subjects(self):
-        query = ("select * from assets_morph")
-        self.cur2.execute(query)
-
-        subjects = self.cur2.fetchall()
-        return subjects
-
 
 # ----------------------------------------------------------------------------
 # Return a tuple of the key quantities, given a cursor pointing to a 
@@ -135,14 +128,17 @@ class MySQLdb(object):
             flavor = 'test'
             truth = 'UNKNOWN'
 
+        """
+        # If we separate SWAP and MACHINE pickles, this isn't needed!
         morphdata = {}
         # deal with morphology data
         if not np.isnan(subject['M20']):
             morphdata = {'M20':subject['M20'], 'C':subject['C'], 
                     'G':subject['G'], 'A':subject['A'], 'E':subject['elipt']}
+        """
 
         items = t, str(Name), str(ID), str(ZooID), category, kind, flavor,\
-                result, truth, location, morphdata
+                result, truth, location
 
         return items[:]
 
@@ -151,17 +147,17 @@ class MySQLdb(object):
 # Return the size of the classification table:
 
     def size(self):
-        return self.cur.rowcount
+        return self.cur1.rowcount
 
 # ----------------------------------------------------------------------------
 
     def cleanup(self):
     
-        try: self.cur.close()
+        try: self.cur1.close()
         except: pass
-        try: self.con.close()
+        try: self.con1.close()
         except: pass
-        del self.cur
+        del self.cur1
 
         return
 

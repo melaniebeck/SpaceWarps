@@ -9,3 +9,5 @@ from toydb import *
 from mongodb import *
 from shannon import *
 from mysqldb import *
+from mysqldb_ML import *
+from subject_ML import *

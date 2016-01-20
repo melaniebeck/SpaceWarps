@@ -151,50 +151,22 @@ def write_catalog(sample, bureau, filename, thresholds, kind='test'):
 
     # Open a new catalog and write a header:
     F = open(filename,'w')
-    F.write('%s\n' % "# zooid     P         Nclass  image  G   M20   C   A   E")
+    F.write('%s\n' % "# zooid     P         Nclass  image")
 
     for ID in sample.list():
         subject = sample.member[ID]
         P = subject.mean_probability
 
-        '''
-        Am I being an idiot here? Just take the probability as an indicator
-        of a subject's overall label/status as SMOOTH or NOT 
-        HIGHER P => SMOOTH  / LOWER P => NOT (use this in MachineClassifier.py)
-        
-        history = subject.annotationhistory
-        votes = Counter(history['ItWas'])
-
-        # if more than one vote cast for this object...
-        if len(votes) > 1:
-
-            # if the count is tied between SMOOTH and NOT...
-            if votes[0] == votes[1]:
-                # choose which user is the most skilled and
-                # take that person's vote
-
-            # if there is a majority...
-            else:
-                label = max(votes, key=votes.get)
-
-        # if only one vote cast so far, take that label
-        else:
-            label = max(votes, key=votes.get)            
-        '''
         if kind=='rejected' and subject.state == 'inactive':
-            output = (subject.ZooID, P, subject.exposure, 
-                      subject.location, subject.G, subject.M20, 
-                      subject.C, subject.A, subject.E)
+            output = (subject.ZooID, P, subject.exposure, subject.location)
             # Write a new line:
-            F.write('%s  %9.7f  %s       %s   %s   %s   %s   %s   %s\n'\
+            F.write('%s  %9.7f  %s       %s\n'\
                     %output)
             Nlenses += 1 
 
         elif kind=='detected' and subject.status == 'detected':
-            output = (subject.ZooID, P, subject.exposure, 
-                      subject.location, subject.G, subject.M20, 
-                      subject.C, subject.A, subject.E)
-            F.write('%s  %9.7f  %s       %s   %s   %s   %s   %s   %s\n'%output)
+            output = (subject.ZooID, P, subject.exposure, subject.location)
+            F.write('%s  %9.7f  %s       %s\n'%output)
             Nlenses += 1            
 
         elif P > thresholds['rejection'] and subject.kind == kind:
@@ -202,11 +174,9 @@ def write_catalog(sample, bureau, filename, thresholds, kind='test'):
             #zooid = subject.ZooID
             #png = subject.location
             #Nclass = subject.exposure
-            output = (subject.ZooID, P, subject.exposure, subject.location,
-                      subject.G, subject.M20, subject.C, subject.A, subject.E)
-
+            output = (subject.ZooID, P, subject.exposure, subject.location)
             # Write a new line:
-            F.write('%s  %9.7f  %s       %s   %s   %s   %s   %s   %s\n'\
+            F.write('%s  %9.7f  %s       %s\n'\
                     %output)
             Nlenses += 1
 
@@ -217,7 +187,6 @@ def write_catalog(sample, bureau, filename, thresholds, kind='test'):
     return Nlenses,Nsubjects
 
 # ----------------------------------------------------------------------------
-# Make up a new filename, based on tonight's parameters:
 
 def get_new_filename(pars,flavour):
 
@@ -227,7 +196,8 @@ def get_new_filename(pars,flavour):
     ext = 'txt'
     # Pickles are an exception though!
 
-    if flavour in ['bureau', 'collection', 'database', 'offline']:
+    if flavour in ['bureau', 'collection', 'full_collection', 
+                   'database', 'offline']:
         stem = pars['survey']+'_'+flavour
         ext = 'pickle'
         folder = '.'
@@ -277,6 +247,7 @@ def write_config(filename, pars):
                  'end', \
                  'bureaufile', \
                  'samplefile', \
+                 'fullsamplefile',\
                  'stage', \
                  'verbose', \
                  'one_by_one', \

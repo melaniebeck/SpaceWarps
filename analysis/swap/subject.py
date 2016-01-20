@@ -87,7 +87,7 @@ class Subject(object):
 # ----------------------------------------------------------------------
 
     def __init__(self,ID,ZooID,category,kind,flavor,truth,thresholds,
-                 location,morphdata={},prior=2e-4):
+                 location,prior=0.3):
 
         self.ID = ID
         self.ZooID = ZooID
@@ -113,6 +113,7 @@ class Subject(object):
 
         self.location = location
         
+        """
         if morphdata:
             self.G = morphdata['G']
             self.M20 = morphdata['M20']
@@ -121,8 +122,9 @@ class Subject(object):
             self.E = morphdata['E']
         else:
             self.G = self.M20 = self.C = self.A = self.E = 'nan'
-
+   
         #print "In subject.__init__:", morphdata
+        """
 
         self.annotationhistory = {'Name': np.array([]),
                             'ItWas': np.array([], dtype=int),
@@ -336,11 +338,11 @@ class Subject(object):
         elif self.mean_probability > self.detection_threshold:
             self.status = 'detected'
             if self.kind == 'test':
-                # Let's keep the detections live!
-                #   self.state = 'inactive'
-                #   self.retirement_time = at_time
-                #   self.retirement_age = self.exposure
-                pass
+                # Let's keep the detections live! <-- Phil; I say: NOPE!
+                self.state = 'inactive'
+                self.retirement_time = at_time
+                self.retirement_age = self.exposure
+                #pass
 
         else:
             # Keep the subject alive! This code is only reached if

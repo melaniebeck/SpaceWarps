@@ -8,6 +8,7 @@ import numpy as np
 import os, subprocess
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.ensemble import RandomForestClassifier
+import cPickle
 
 '''
 Workflow:
@@ -89,9 +90,62 @@ def MachineClassifier(options, args):
     except: pdb.set_trace()
 
     tonights = swap.Configuration(config)
+
+    # Read the pickled random state file
+    random_file = open(tonights.parameters['random_file'],"r");
+    random_state = cPickle.load(random_file);
+    random_file.close();
+    np.random.set_state(random_state);
+
     survey = tonights.parameters['survey']
     subdir = 'sup_run4'
 
+    # read in the FULL collection of subjects
+    full_sample = swap.read_pickle(tonights.parameters['fullsamplefile'],
+                                   'full_collection')
+    # read in the SWAP collection
+    sample = swap.read_pickle(tonights.parameters['samplefile'],'collection')
+
+
+    train = full_sample[full_sample['MLsample']=='train']
+    test = full_sample[full_sample['MLsample']=='test']
+    train_data, train_sample = extract_training(train, 
+                                            keys=['M20','C','elipt','A','G'])
+    test_data, test_sample = extract_training(train, 
+                                            keys=['M20','C','elipt','A','G'])
+    labels = np.array([1 if p > 0.3 else 0 for p in train_data['label']])
+ 
+                                        
+    predictions, probabilities = runKNC(train_sample, labels, test_sample)
+    # for subjects with probabilities > threshold, create an entry in the 
+    # SWAP Collection
+    
+    pdb.set_trace()
+                      
+
+    # read out results of ML to file ... 
+    # In order to be "Like SWAP", need to figure out which subjects can be
+    # "retired" -- which are classified well enough. 
+    output = Table(data=probabilities, names=('not%', 'smooth%'))
+    output['prediction']=predictions
+    Table.write(output,'%s%s_machine.txt'%(directory,trunk), format='ascii')
+        
+                                
+
+if __name__ == '__main__':
+    parser = OptionParser()
+    parser.add_option("-c", "--config", dest="configfile", 
+                      help="Name of config file")
+    parser.add_option("-o", "--offline", dest="offline", default=False,
+                      action='store_true',
+                      help="Run in offline mode; e.g. on existing SWAP output.")
+
+    (options, args) = parser.parse_args()
+    MachineClassifier(options, args)
+
+
+    """
+    # I don't think I need to look through all the output files... 
     if options.offline:
         # read in a slew of directories
         try:
@@ -112,14 +166,9 @@ def MachineClassifier(options, args):
         except: 
             print "Output from SWAP not found!\nAborting.\n"
             return
-            
 
-    # Pull up all "test" subjects
+    # Pull up all "test" subjects -- don't need this with new system
     subjects = Table.read('GZ2assets_Nair_Morph_zoo2Main.fits')
-
-    test_subjects, test_sample = extract_training(subjects, 
-                                            keys=['M20','C','elipt','A','G'])
-
 
     # Read in the Catalogs (training data) -- "retired" and "candidate" catalogs
     # if offline, there will be many to do...
@@ -167,7 +216,7 @@ def MachineClassifier(options, args):
             training_sample = np.vstack([candidates_morph, retired_morph])
             SWAP_probabilities = np.concatenate([np.array(candidates['P']), 
                                                   np.array(retired['P'])])
-        elif retired_objects: 
+        elif retired_objects: # retired =  
             training_subjects = retired
             training_sample = retired_morph
             SWAP_probabilities = retired['P']
@@ -183,6 +232,8 @@ def MachineClassifier(options, args):
         print "Training sample consists of %i subjects."%len(training_sample)
 
         # Add 'target' labels (SMOOTH: 1, NOT: 0)
+        # Assuming that EVERYTHING seen by users is being fed to SWAP & Machine
+        # SWAP assigns probability to subject; if > prior -> SMOOTH; else NOT
         labels = np.array([])
         for p in SWAP_probabilities:
             if p >= 0.3: 
@@ -192,6 +243,9 @@ def MachineClassifier(options, args):
                 labels = np.append(labels, 0)
                 #weights = np.append(weights, 1.-p)
 
+        # But what if we don't want to send EVERYTHING to Machine? 
+        # Just send objects which have crossed rejection/detection thesholds!
+        
 
         # Finally, test_sample contains EVERYTHING -- 
         # pull out those that are in the training sample -- don't overfit
@@ -210,25 +264,4 @@ def MachineClassifier(options, args):
         thingy = test_subjects[test_idx]
         Table.write(thingy, outfile, format='fits', overwrite=True)
 
-        predictions, probabilities = runKNC(training_sample, labels, 
-                                            test_sample_final)
-        
-        # read out results of ML to file ... 
-        # In order to be "Like SWAP", need to figure out which subjects can be
-        # "retired" -- which are classified well enough. 
-        output = Table(data=probabilities, names=('not%', 'smooth%'))
-        output['prediction']=predictions
-        Table.write(output,'%s%s_machine.txt'%(directory,trunk), format='ascii')
-        
-                                
-
-if __name__ == '__main__':
-    parser = OptionParser()
-    parser.add_option("-c", "--config", dest="configfile", 
-                      help="Name of config file")
-    parser.add_option("-o", "--offline", dest="offline", default=False,
-                      action='store_true',
-                      help="Run in offline mode; e.g. on existing SWAP output.")
-
-    (options, args) = parser.parse_args()
-    MachineClassifier(options, args)
+    """
