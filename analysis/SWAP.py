@@ -105,7 +105,7 @@ def SWAP(argv):
     # ------------------------------------------------------------------
     # Read in run configuration:
 
-    last = '2009-05-04_00:00:00'
+    last = '2009-02-17_00:00:00' ########################################
 
     tonights = swap.Configuration(configfile)
 
@@ -248,23 +248,7 @@ def SWAP(argv):
     # ------------------------------------------------------------------
     # Open up database:
 
-    if practise:
-
-        db = swap.read_pickle(tonights.parameters['dbfile'],'database')
-
-        if db is None:
-            print "SWAP: making a new Toy database..."
-            db = swap.ToyDB(pars=tonights.parameters)
-
-        print "SWAP: database has ",db.size()," Toy classifications"
-        print "SWAP: of ",db.surveysize," Toy subjects"
-        print "SWAP: made by ",db.population," Toy classifiers"
-        print "SWAP: where each classifier makes ",db.enthusiasm,\
-            " classifications, on average"
-
-    else:
-        #db = swap.MongoDB()
-        db = swap.MySQLdb()
+    db = swap.MySQLdb()
 
     # Read in a batch of classifications, made since the aforementioned
     # start time:
@@ -275,7 +259,11 @@ def SWAP(argv):
 
     # read in a file of all galaxies which includes a designation if 
     # that galaxy is part of the NAIR catalog
-    subjects = Table.read('GZ2assets_Nair_Morph.fits')
+    # 1/18/16 -- SHIT! This information should be in the asset_morph table!
+    subjects = Table.read('GZ2assets_Nair_Morph.fits') 
+
+    #full_sample = swap.read_pickle('GZ2_fullsample_collection.pickle',
+    #                                'collection')
 
     # ------------------------------------------------------------------
 
@@ -294,40 +282,25 @@ def SWAP(argv):
         if items is None:
             continue 
 
-        tstring,Name,ID,ZooID,category,kind,flavor,X,Y,location,morphdata=items
-        #classification_stage,at_x,at_y
-
+        tstring,Name,ID,ZooID,category,kind,flavor,X,Y,location=items
         t = datetime.datetime.strptime(tstring, '%Y-%m-%d_%H:%M:%S')
-
-        '''
-        # If the stage of this classification does not match the stage we are
-        # on, skip to the next one!
-        if classification_stage != stage:
-            if vb:
-                print "Found classification from different stage: ",classification_stage," cf. ",stage,", items = ",items
-                print " "
-            continue
-        else:
-            if vb:
-                print "Found classification from this stage: ",items
-                print " "
-        '''
 
         # Break out if we've reached the time limit:
         if t > t2:
             break
 
+        #-------------------------------------------------------------------
+        #                 REGISTER NEW VOLUNTEERS / SUBJECTS
+        #-------------------------------------------------------------------
         # Register new volunteers, and create an agent for each one:
-        # Old, slow code: if Name not in bureau.list():
         try: test = bureau.member[Name]
         except: bureau.member[Name] = swap.Agent(Name,tonights.parameters)
 
         # Register newly-classified subjects:
-        # Old, slow code: if ID not in sample.list():
         try: test = sample.member[ID]
         except: sample.member[ID] = swap.Subject(ID,ZooID,category,kind,
                                                  flavor,Y,thresholds,location,
-                                                 morphdata, prior=prior)
+                                                 prior=prior)
 
         # Update the subject's lens probability using input from the
         # classifier. We send that classifier's agent to the subject
@@ -336,10 +309,24 @@ def SWAP(argv):
                                         at_time=tstring, while_ignoring=
                                         a_few_at_the_start, haste=waste)
 
-        # Update the agent's confusion matrix, based on what it heard:
-
         P = sample.member[ID].mean_probability
 
+        #-------------------------------------------------------------------
+        #                          UPDATE ML SAMPLE
+        #-------------------------------------------------------------------
+        # if the subject has crossed either rejection/detection threshold
+        # flip that subject from Test to Train sample in the ML Collection
+        if (sample.member[ID].status != 'undecided') or \
+           (sample.member[ID].state == 'inactive'):
+            item = np.where(subjects['name']==int(sample.member[ID].ZooID))
+            subjects['MLsample'][item] = 'train'
+            subjects['label'][item] = P
+            #pdb.set_trace()
+
+
+        #-------------------------------------------------------------------
+        #                 UPDATE AGENT'S CONFUSION MATRIX
+        #-------------------------------------------------------------------
         if supervised_and_unsupervised:
             print "supervised_and_unsupervised? Bad SWAP."
             # use both training and test images
@@ -434,7 +421,7 @@ def SWAP(argv):
 
     # Use the following directory for output lists and plots:
     tonights.parameters['trunk'] = \
-        tonights.parameters['survey']+'_'+tonights.parameters['finish']
+                tonights.parameters['survey']+'_'+tonights.parameters['finish']
 
     tonights.parameters['dir'] = os.getcwd()+'/'+tonights.parameters['trunk']
     if not os.path.exists(tonights.parameters['dir']):
@@ -458,13 +445,12 @@ def SWAP(argv):
         print "SWAP: saving subjects to "+new_samplefile
         swap.write_pickle(sample,new_samplefile)
         tonights.parameters['samplefile'] = new_samplefile
-
-        if practise:
-            new_dbfile = swap.get_new_filename(tonights.parameters,'database')
-            print "SWAP: saving database to "+new_dbfile
-            swap.write_pickle(db,new_dbfile)
-            tonights.parameters['dbfile'] = new_dbfile
-
+        
+        new_fullsamplefile = swap.get_new_filename(tonights.parameters,
+                                                   'full_collection')
+        print "SWAP: saving full sample to "+new_fullsamplefile
+        swap.write_pickle(subjects,new_fullsamplefile)
+        tonights.parameters['fullsamplefile'] = new_fullsamplefile
 
     # ------------------------------------------------------------------
 

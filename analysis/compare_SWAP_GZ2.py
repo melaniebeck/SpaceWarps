@@ -356,7 +356,7 @@ def main(options, args):
     
 
     # Now go to work --------------------------------------------------------
-    #days = plot_retired(options.config)
+    days = plot_retired(options.config)
     #plot_num_classifications_to_retire(joined, days, options.config)
 
     try: results = Table.read('%s_results.fits'%basename)

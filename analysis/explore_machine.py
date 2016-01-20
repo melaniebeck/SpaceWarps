@@ -148,7 +148,7 @@ def main(options, args):
 
         trunk = directory.split('/')[-2]
 
-        # Each night, the test sample grows smaller -- read in tonight's test sample
+        # Read in tonight's test sample
         try: 
             answerfile = '%s%s_machine_testsample.fits'%(directory,trunk)
             print "Read in test sample: %s"%answerfile
@@ -167,20 +167,21 @@ def main(options, args):
             return
 
         print "Processing machine output from %s"%trainingfile
+
         
         tt, ff = matches(machine['prediction'], truth['truth'])
         total = np.append(total, tt)
         fraction = np.append(fraction,ff)
         
-        predictions, truth = machine['prediction'], truth['truth']
+        predictions, answer = machine['prediction'], truth['truth']
         probabilities = machine['smooth%','not%']
         
         """------------------ MATCHES ABOVE THRESHOLD ----------------------"""
-        msat = ((predictions==1) & (truth==1) &
+        msat = ((predictions==1) & (answer==1) &
                 (probabilities['smooth%']>=threshold))
         match_smooth_above_thresh.append(np.sum(msat))
 
-        mnat = ((predictions==0) & (truth==0) & 
+        mnat = ((predictions==0) & (answer==0) & 
                 (probabilities['not%']>=threshold)) 
         match_not_above_thresh.append( np.sum(mnat))
 
@@ -192,8 +193,10 @@ def main(options, args):
         predict_not_above_thresh.append(np.sum(pnat))
 
         """----------------------- TOTAL MATCHES ---------------------------"""
-        match_smooth.append(np.sum(((predictions==1) & (truth==1))))
-        match_not.append(np.sum(((predictions==0) & (truth==0))))
+        match_smooth.append(np.sum(((predictions==1) & (answer==1)))*1.0/
+                            len(predictions))
+        match_not.append(np.sum(((predictions==0) & (answer==0)))*1.0/
+                         len(predictions))
 
         # Indexes of SMOOTH MATCHES ABOVE THRESHOLD
         good_smooth_idx['night_%i'%night] = match_smooth
@@ -201,7 +204,7 @@ def main(options, args):
         good_not_idx['night_%i'%night] = match_not
         night+=1
 
-        [comp, cont, fpr] = completeness_contamination(predictions, truth)
+        [comp, cont, fpr] = completeness_contamination(predictions, answer)
         completeness.append(comp)
         contamination.append(cont)
         false_positive_rate.append(fpr)
@@ -215,16 +218,32 @@ def main(options, args):
                            np.array(predict_not_above_thresh)
 
     # Ratio of MATCHES AT / TOTAL MATCHES
-    match_AT_totmatch_smooth = np.array(match_smooth_above_thresh)*1./np.array(match_smooth)
-    match_AT_totmatch_not = np.array(match_not_above_thresh)*1./np.array(match_not)
+    match_AT_totmatch_smooth = np.array(match_smooth_above_thresh)*1./\
+                               np.array(match_smooth)
+    match_AT_totmatch_not = np.array(match_not_above_thresh)*1./\
+                            np.array(match_not)
 
     pdb.set_trace()
 
     fig = plt.figure(figsize=(10,10))
-    ax = fig.add_subplot(111)
+    ax = fig.add_subplot(211)
     
-    ax.plot(completeness, 'ko', label='completeness')
-    ax.plot(contamination, 'ro', label='contamination')
+    ax.plot(completeness, 'k', label='completeness')
+    ax.plot(contamination, 'r', label='contamination')
+    ax.set_xlabel('Days in Sim')
+    ax.set_ylabel('Per Cent')
+    ax.legend(loc='best')
+    
+    ax2 = fig.add_subplot(212)
+    ax2.plot(fraction, label='All matches')
+    ax2.plot(match_smooth, 'b', label='SMOOTH matches')
+    ax2.plot(match_not, 'r', label='NOT matches')
+    ax2.set_xlabel('Days in Sim')
+    ax2.set_ylabel('Fraction Correct')
+    ax2.legend(loc='best')
+    
+    plt.tight_layout()
+    plt.savefig('machine_output_sup_run4.png')
     plt.show()
     pdb.set_trace()
 

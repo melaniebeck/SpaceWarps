@@ -42,15 +42,18 @@ except:
 print count
 
 while more_to_do:
+    # If this is the first run, need to initialize the Machine's Collection
+    #if config == 'startup.config':
+    #    os.system("python init_MachineCollection.py")
+
     logfile = "%s/GZ2_%i.log"%(log_dir,count)
 
     # run SWAP.py
-    os.system("python SWAP.py %s > %s"%(config,logfile))
-    #os.system("python SWAP.py %s"%(config))
+    #os.system("python SWAP.py %s > %s"%(config,logfile))
+    os.system("python SWAP.py %s"%(config))
 
-    # how do we get the name of the folder in which the catelogs reside?
     # take candidates from SWAP as training input for machine
-    #os.system("python MachineClassifier.py -c %s"%config)
+    os.system("python MachineClassifier.py -c update.config")
 
     count+=1
 
