@@ -163,7 +163,7 @@ def SWAP(argv):
     waste = tonights.parameters['hasty']
     if waste:
         print "SWAP: agents will ignore the classifications of "\
-            "rejected subjects"
+            "rejected and detected subjects"
     else:
         print "SWAP: agents will use all classifications, even of "\
             "rejected subjects"
@@ -210,10 +210,6 @@ def SWAP(argv):
     print "SWAP: setting the number of classifications made in this "\
         "batch to ",N_per_batch
 
-    # How will we decide if a sim has been seen?
-    #try: use_marker_positions = tonights.parameters['use_marker_positions']
-    #except: use_marker_positions = False
-    #print "SWAP: should we use the marker positions on sims? ",use_marker_positions
 
     try: 
         prior = tonights.parameters['prior']
@@ -246,6 +242,18 @@ def SWAP(argv):
     sample = swap.read_pickle(tonights.parameters['samplefile'],'collection')
 
     # ------------------------------------------------------------------
+    # Read in an old pickle or open the base fits file representing the 
+    # entire metadata for all subjects in the database
+
+    try: 
+        metafile = tonights.parameters['metadatafile']
+        subjects = swap.read_pickle(metafile, 'metadata')
+        print "SWAP: read an old metadata file from %s"%metafile
+    except:
+        subjects = Table.read('GZ2assets_Nair_Morph.fits') 
+        print "SWAP: opened a new metadata file"
+
+    # ------------------------------------------------------------------
     # Open up database:
 
     db = swap.MySQLdb()
@@ -254,16 +262,7 @@ def SWAP(argv):
     # start time:
 
     batch = db.find('between',t1,t2)  
-    #batch = db.find('before', t2)
     print "SWAP: found %i classifications for this batch"%len(batch)
-
-    # read in a file of all galaxies which includes a designation if 
-    # that galaxy is part of the NAIR catalog
-    # 1/18/16 -- SHIT! This information should be in the asset_morph table!
-    subjects = Table.read('GZ2assets_Nair_Morph.fits') 
-
-    #full_sample = swap.read_pickle('GZ2_fullsample_collection.pickle',
-    #                                'collection')
 
     # ------------------------------------------------------------------
 
@@ -312,16 +311,17 @@ def SWAP(argv):
         P = sample.member[ID].mean_probability
 
         #-------------------------------------------------------------------
-        #                          UPDATE ML SAMPLE
+        #                  UPDATE THE METADATA FILE FOR ML
         #-------------------------------------------------------------------
         # if the subject has crossed either rejection/detection threshold
         # flip that subject from Test to Train sample in the ML Collection
         if (sample.member[ID].status != 'undecided') or \
            (sample.member[ID].state == 'inactive'):
-            item = np.where(subjects['name']==int(sample.member[ID].ZooID))
-            subjects['MLsample'][item] = 'train'
+            item = np.where(subjects['id']==int(sample.member[ID].ZooID))
+            print "item == ID-1?", item[0] == int(ID)-1
+            subjects['MLsample'][int(ID)-1] = 'train'
             subjects['label'][item] = P
-            #pdb.set_trace()
+            pdb.set_trace()
 
 
         #-------------------------------------------------------------------
@@ -433,7 +433,9 @@ def SWAP(argv):
     # (ie with SWAPSHOP) - so save the pickles in the $cwd. This is
     # taken care of in io.py. Note that we update the parameters as
     # we go - this will be useful later when we write update.config.
-
+    
+    pdb.set_trace() ######################################################
+    
     if tonights.parameters['repickle'] and count > 0:
 
         new_bureaufile = swap.get_new_filename(tonights.parameters,'bureau')
@@ -446,11 +448,10 @@ def SWAP(argv):
         swap.write_pickle(sample,new_samplefile)
         tonights.parameters['samplefile'] = new_samplefile
         
-        new_fullsamplefile = swap.get_new_filename(tonights.parameters,
-                                                   'full_collection')
-        print "SWAP: saving full sample to "+new_fullsamplefile
-        swap.write_pickle(subjects,new_fullsamplefile)
-        tonights.parameters['fullsamplefile'] = new_fullsamplefile
+        metadatafile = swap.get_new_filename(tonights.parameters,'metadata')
+        print "SWAP: saving metadata to "+metadatafile
+        swap.write_pickle(subjects,metadatafile)
+        tonights.parameters['metadatafile'] = metadatafile
 
     # ------------------------------------------------------------------
 

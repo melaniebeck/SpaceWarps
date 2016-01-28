@@ -3,7 +3,7 @@ import swap
 from optparse import OptionParser
 from astropy.table import Table, vstack
 import pdb
-import datetime
+from datetime import datetime
 import numpy as np
 import os, subprocess
 from sklearn.neighbors import KNeighborsClassifier
@@ -33,7 +33,7 @@ def whiten(data):
         data[:,col] = (data[:,col]-mean)/std 
     return data
 
-def extract_training(data, keys=['M20', 'C', 'E', 'A', 'G']):
+def extract_training(data, keys=['M20', 'C', 'elipt', 'A', 'G']):
     '''
     INPUTS:
         astropy Table (or dictionary?)
@@ -83,8 +83,37 @@ def runRF(X_train, y_train, X_test, depth=None):
 
     return predictions, probabilities
 
+def Nair_or_Not(subject):
+    """
+    subject must be an entry from the metadata file 
+    should have stucture like a dictionary
+    """
+    if subject['JID'][0]=='J': 
+        category = 'training'
+        if subject['TType'] <= -2 and subject['dist'] <= 2: 
+            flavor = 'lensing cluster'  # so that I don't have to
+            kind = 'sim'                # change stuff elsewhere...
+            truth = 'SMOOTH'
+        elif subject['TType'] >= 1 and subject['flag'] != 2: 
+            kind = 'dud' 
+            flavor = 'dud'
+            truth = 'NOT'
+        else:
+            kind = 'test'
+            flavor = 'test'
+            truth = 'UNKNOWN'
+    else: 
+        category = 'test'
+        kind = 'test'
+        flavor = 'test'
+        truth = 'UNKNOWN'
+
+    descriptors = category, kind, flavor, truth
+    return descriptors[:]
 
 def MachineClassifier(options, args):
+
+    threshold = 0.9
 
     try: config = options.configfile
     except: pdb.set_trace()
@@ -100,35 +129,91 @@ def MachineClassifier(options, args):
     survey = tonights.parameters['survey']
     subdir = 'sup_run4'
 
-    # read in the FULL collection of subjects
-    full_sample = swap.read_pickle(tonights.parameters['fullsamplefile'],
-                                   'full_collection')
+    #----------------------------------------------------------------------
+    # read in the metadata for all subjects (Test or Training sample?)
+    subjects = swap.read_pickle(tonights.parameters['metadatafile'], 'metadata')
+
+    #----------------------------------------------------------------------
     # read in the SWAP collection
     sample = swap.read_pickle(tonights.parameters['samplefile'],'collection')
 
+    #----------------------------------------------------------------------
+    # read in or create the ML collection (Should be empty first time)
+    MLsample = swap.read_pickle(tonights.parameters['MLsamplefile'],
+                                'MLcollection')
 
-    train = full_sample[full_sample['MLsample']=='train']
-    test = full_sample[full_sample['MLsample']=='test']
-    train_data, train_sample = extract_training(train, 
-                                            keys=['M20','C','elipt','A','G'])
-    test_data, test_sample = extract_training(train, 
-                                            keys=['M20','C','elipt','A','G'])
-    labels = np.array([1 if p > 0.3 else 0 for p in train_data['label']])
- 
-                                        
-    predictions, probabilities = runKNC(train_sample, labels, test_sample)
-    # for subjects with probabilities > threshold, create an entry in the 
-    # SWAP Collection
-    
-    pdb.set_trace()
-                      
+    #-----------------------------------------------------------------------    
+    #        DETERMINE IF THERE IS A TRAINING SAMPLE TO WORK WITH 
+    #-----------------------------------------------------------------------
+    train = subjects[subjects['MLsample']=='train']
+    #train = subjects[:100]
+    if train:
+        test = subjects[subjects['MLsample']=='test']
+        #test = subjects[100:200]
+        train_data, train_sample = extract_training(train)
+        test_data, test_sample = extract_training(test)
+        labels = np.array([1 if p > 0.3 else 0 for p in train_data['MLsample']])
 
+        #---------------------------------------------------------------    
+        #                 TRAIN THE MACHINE; GET PREDICTIONS 
+        #---------------------------------------------------------------        
+        predictions, probabilities = runKNC(train_sample, labels, test_sample)
+        probs = np.array([p[0] for p in probabilities])
+
+        #---------------------------------------------------------------    
+        #                    PROCESS PREDICTIONS/PROBS
+        #---------------------------------------------------------------
+        for s,p,l in zip(test_data,probs,predictions):
+            ID = str(s['id'])
+
+            descriptions = Nair_or_Not(s)
+            category, kind, flavor, truth = descriptions
+
+            # LOAD EACH TEST SUBJECT INTO MACHINE COLLECTION
+            # -------------------------------------------------------------
+            try: test = MLsample.member[ID]
+            except: MLsample.member[ID] = swap.Subject_ML(ID, str(s['name']), 
+                            category, kind,truth,threshold,s['external_ref'])
+                
+            tstring = datetime.now().strftime('%Y-%m-%d_%H:%M:%S')
+            MLsample.member[ID].was_described(by='knn', as_being=1, withp=p, 
+                                              at_time=tstring)
+
+            # NOTE: if subject is Nair (training) it doesn't get flagged as 
+            # inactive but it can be flagged as detected/rejected
+
+            # IF MACHINE P >= THRESHOLD, INSERT INTO SWAP COLLECTION
+            # -------------------------------------------------------------
+            thresholds = {'detection':0.,'rejection':0.}
+            if (p >= threshold) or (1-p >= threshold):
+                print p
+                # Initialize the subject in SWAP Collection
+                sample.member[ID] = swap.Subject(ID, str(s['name']), category,
+                                                 kind,flavor,truth,thresholds,
+                                                 s['external_ref'],0.) 
+                sample.member[ID].retiredby = 'machine'
+                
+                # Flag subject as 'INACTIVE' / 'DETECTED' / 'REJECTED'
+                # ----------------------------------------------------------
+                if p >= threshold:
+                    sample.member[str(s['id'])].state = 'inactive'
+                elif 1-p >= threshold:
+                    sample.member[str(s['id'])].status = 'rejected' 
+
+
+        #---------------------------------------------------------------    
+        #                 SAVE MACHINE METADATA? 
+        #---------------------------------------------------------------
+        print "Size of SWAP sample:", sample.size()
+        print "Size of ML sample:", MLsample.size()
+
+        
     # read out results of ML to file ... 
     # In order to be "Like SWAP", need to figure out which subjects can be
     # "retired" -- which are classified well enough. 
-    output = Table(data=probabilities, names=('not%', 'smooth%'))
-    output['prediction']=predictions
-    Table.write(output,'%s%s_machine.txt'%(directory,trunk), format='ascii')
+    #output = Table(data=probabilities, names=('not%', 'smooth%'))
+    #output['prediction']=predictions
+    #Table.write(output,'%s%s_machine.txt'%(directory,trunk), format='ascii')
         
                                 
 

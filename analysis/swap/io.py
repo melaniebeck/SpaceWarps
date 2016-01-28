@@ -71,11 +71,11 @@ def read_pickle(filename,flavour):
             contents = swap.Bureau()
             print "SWAP: made a new",contents
 
-        elif flavour == 'collection':
+        elif 'collection' in flavour:
             contents = swap.Collection()
             print "SWAP: made a new",contents
 
-        elif flavour == 'database':
+        elif flavour in ['database','metadata']:
             contents = None
 
     return contents
@@ -196,7 +196,7 @@ def get_new_filename(pars,flavour):
     ext = 'txt'
     # Pickles are an exception though!
 
-    if flavour in ['bureau', 'collection', 'full_collection', 
+    if flavour in ['bureau', 'collection', 'MLcollection', 'metadata',
                    'database', 'offline']:
         stem = pars['survey']+'_'+flavour
         ext = 'pickle'
@@ -247,7 +247,8 @@ def write_config(filename, pars):
                  'end', \
                  'bureaufile', \
                  'samplefile', \
-                 'fullsamplefile',\
+                 'metadatafile',\
+                 'MLsamplefile',\
                  'stage', \
                  'verbose', \
                  'one_by_one', \

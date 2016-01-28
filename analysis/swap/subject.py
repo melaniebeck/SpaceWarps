@@ -101,6 +101,7 @@ class Subject(object):
 
         self.retirement_time = 'not yet'
         self.retirement_age = 0.0
+        self.retiredby = 'undecided'
 
         self.probability = np.zeros(Ntrajectory)+prior
         self.mean_probability = prior
@@ -112,19 +113,6 @@ class Subject(object):
         self.rejection_threshold = thresholds['rejection']
 
         self.location = location
-        
-        """
-        if morphdata:
-            self.G = morphdata['G']
-            self.M20 = morphdata['M20']
-            self.C = morphdata['C']
-            self.A = morphdata['A']
-            self.E = morphdata['E']
-        else:
-            self.G = self.M20 = self.C = self.A = self.E = 'nan'
-   
-        #print "In subject.__init__:", morphdata
-        """
 
         self.annotationhistory = {'Name': np.array([]),
                             'ItWas': np.array([], dtype=int),
@@ -180,9 +168,7 @@ class Subject(object):
         elif haste and (     self.state == 'inactive' \
                          or self.status == 'detected' \
                          or self.status == 'rejected' ):
-
-                # print "SWAP: WARNING: subject "+self.ID+" is inactive, but appears to have been just classified"
-                pass
+            pass
 
         else:
 
@@ -334,6 +320,7 @@ class Subject(object):
                 else:
                     self.retirement_time = 'end of time'
                 self.retirement_age = self.exposure
+                self.retiredby = 'swap'
 
         elif self.mean_probability > self.detection_threshold:
             self.status = 'detected'
@@ -342,6 +329,7 @@ class Subject(object):
                 self.state = 'inactive'
                 self.retirement_time = at_time
                 self.retirement_age = self.exposure
+                self.retiredby = 'swap'
                 #pass
 
         else:
