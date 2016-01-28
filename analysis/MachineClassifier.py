@@ -207,14 +207,120 @@ def MachineClassifier(options, args):
         print "Size of SWAP sample:", sample.size()
         print "Size of ML sample:", MLsample.size()
 
+      
+    if report:
+
+        # Output list of subjects to retire, based on this batch of
+        # classifications. Note that what is needed here is the ZooID,
+        # not the subject ID:
+
+        new_retirementfile = swap.get_new_filename(tonights.parameters,\
+                                                   'retire_these')
+        print "SWAP: saving retiree subject Zooniverse IDs..."
+        N = swap.write_list(sample,new_retirementfile,item='retired_subject')
+        print "SWAP: "+str(N)+" lines written to "+new_retirementfile
+
+        # Also print out lists of detections etc! These are urls of images.
+        # ----------------------------------------------------------------
+        new_samplefile = swap.get_new_filename(tonights.parameters,'candidates')
+        print "SWAP: saving lens candidates..."
+        N = swap.write_list(sample,new_samplefile,item='candidate')
+        print "SWAP: "+str(N)+" lines written to "+new_samplefile
+
+        # Now save the training images, for inspection:
+        new_samplefile = swap.get_new_filename(tonights.parameters,\
+                                               'training_true_positives')
+        print "SWAP: saving true positives..."
+        N = swap.write_list(sample,new_samplefile,item='true_positive')
+        print "SWAP: "+str(N)+" lines written to "+new_samplefile
+
+        new_samplefile = swap.get_new_filename(tonights.parameters,\
+                                               'training_false_positives')
+        print "SWAP: saving false positives..."
+        N = swap.write_list(sample,new_samplefile,item='false_positive')
+        print "SWAP: "+str(N)+" lines written to "+new_samplefile
+
+        new_samplefile = swap.get_new_filename(tonights.parameters,\
+                                               'training_false_negatives')
+        print "SWAP: saving false negatives..."
+        N = swap.write_list(sample,new_samplefile,item='false_negative')
+        print "SWAP: "+str(N)+" lines written to "+new_samplefile
+
+        # Also write out catalogs of subjects, including the ZooID, subject ID,
+        # how many classifications, and probability:
+        # -------------------------------------------------------------------
+        catalog = swap.get_new_filename(tonights.parameters,'candidate_catalog')
+        print "SWAP: saving catalog of high probability subjects..."
+        Nlenses,Nsubjects = swap.write_catalog(sample,bureau,catalog,
+                                               thresholds,kind='test')
+        print "SWAP: From "+str(Nsubjects)+" subjects classified,"
+        print "SWAP: "+str(Nlenses)+" candidates (with P > rejection) "\
+            "written to "+catalog
+
+        catalog = swap.get_new_filename(tonights.parameters,'sim_catalog')
+        print "SWAP: saving catalog of high probability subjects..."
+        Nsims,Nsubjects = swap.write_catalog(sample,bureau,catalog,
+                                             thresholds,kind='sim')
+        print "SWAP: From "+str(Nsubjects)+" subjects classified,"
+        print "SWAP: "+str(Nsims)+" sim 'candidates' (with P > "\
+            "rejection) written to "+catalog
+
+        catalog = swap.get_new_filename(tonights.parameters,'dud_catalog')
+        print "SWAP: saving catalog of high probability subjects..."
+        Nduds,Nsubjects = swap.write_catalog(sample,bureau,catalog,
+                                             thresholds,kind='dud')
+        print "SWAP: From "+str(Nsubjects)+" subjects classified,"
+        print "SWAP: "+str(Nduds)+" dud 'candidates' (with P > "\
+            "rejection) written to "+catalog
+
+        catalog =swap.get_new_filename(tonights.parameters,'retired_catalog')
+        print "SWAP: saving catalog of retired subjects..."
+        Nretired, Nsubjects = swap.write_catalog(sample,bureau,catalog,
+                                                 thresholds,kind='rejected')
+        print "SWAP: From "+str(Nsubjects)+" subjects classified,"
+        print "SWAP: "+str(Nretired)+" retired (with P < rejection) "\
+            "written to "+catalog
+       
+        catalog =swap.get_new_filename(tonights.parameters,'detected_catalog')
+        print "SWAP: saving catalog of detected subjects..."
+        Ndetected, Nsubjects = swap.write_catalog(sample,bureau,catalog,
+                                                  thresholds,kind='detected')
+        print "SWAP: From "+str(Nsubjects)+" subjects classified,"
+        print "SWAP: "+str(Ndetected)+" detected (with P > acceptance) "\
+            "written to "+catalog        
+
+
+    # Set up output based on where we got to
+    # ------------------------------------------------------------------
+    # And what will we call the new files we make? Use the Start Time
+    tonights.parameters['finish'] = tonights.parameters['start']
+    
+    # Use the following directory for output lists and plots:
+    tonights.parameters['trunk'] = tonights.parameters['survey']+'_'+\
+                                   tonights.parameters['finish']
+    
+    tonights.parameters['dir'] =os.getcwd()+'/'+tonights.parameters['trunk']
+    
+    if not os.path.exists(tonights.parameters['dir']):
+        os.makedirs(tonights.parameters['dir'])
+
+    if tonights.parameters['repickle']:
+
+        new_bureaufile = swap.get_new_filename(tonights.parameters,'bureau')
+        print "SWAP: saving agents to "+new_bureaufile
+        swap.write_pickle(bureau,new_bureaufile)
+        tonights.parameters['bureaufile'] = new_bureaufile
+
+        new_samplefile = swap.get_new_filename(tonights.parameters,'collection')
+        print "SWAP: saving subjects to "+new_samplefile
+        swap.write_pickle(sample,new_samplefile)
+        tonights.parameters['samplefile'] = new_samplefile
         
-    # read out results of ML to file ... 
-    # In order to be "Like SWAP", need to figure out which subjects can be
-    # "retired" -- which are classified well enough. 
-    #output = Table(data=probabilities, names=('not%', 'smooth%'))
-    #output['prediction']=predictions
-    #Table.write(output,'%s%s_machine.txt'%(directory,trunk), format='ascii')
-        
+        metadatafile = swap.get_new_filename(tonights.parameters,'metadata')
+        print "SWAP: saving metadata to "+metadatafile
+        swap.write_pickle(subjects,metadatafile)
+        tonights.parameters['metadatafile'] = metadatafile
+       
                                 
 
 if __name__ == '__main__':

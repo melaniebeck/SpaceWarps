@@ -135,7 +135,7 @@ def SWAP(argv):
         tonights.parameters['supervised_and_unsupervised']=False
 
     # will agents be able to learn?
-    try: agents_willing_to_learn = tonights.parameters['agents_willing_to_learn']
+    try: agents_willing_to_learn =tonights.parameters['agents_willing_to_learn']
     except: agents_willing_to_learn = False
     if agents_willing_to_learn:
 
@@ -229,6 +229,11 @@ def SWAP(argv):
     thresholds = {}
     thresholds['detection'] = tonights.parameters['detection_threshold']
     thresholds['rejection'] = tonights.parameters['rejection_threshold']
+
+
+    # will we perform machine learning after SWAP?
+    try: machine = tonights.parameters['machine']
+    else: machine = False
 
     # ------------------------------------------------------------------
     # Read in, or create, a bureau of agents who will represent the
@@ -414,47 +419,6 @@ def SWAP(argv):
 
     # ------------------------------------------------------------------
 
-    # Set up outputs based on where we got to.
-
-    # And what will we call the new files we make? Use the Start Time
-    tonights.parameters['finish'] = tonights.parameters['start']
-
-    # Use the following directory for output lists and plots:
-    tonights.parameters['trunk'] = \
-                tonights.parameters['survey']+'_'+tonights.parameters['finish']
-
-    tonights.parameters['dir'] = os.getcwd()+'/'+tonights.parameters['trunk']
-    if not os.path.exists(tonights.parameters['dir']):
-        os.makedirs(tonights.parameters['dir'])
-
-    # ------------------------------------------------------------------
-    # Pickle the bureau, sample, and database, if required. If we do
-    # this, its because we want to pick up from where we left off
-    # (ie with SWAPSHOP) - so save the pickles in the $cwd. This is
-    # taken care of in io.py. Note that we update the parameters as
-    # we go - this will be useful later when we write update.config.
-    
-    pdb.set_trace() ######################################################
-    
-    if tonights.parameters['repickle'] and count > 0:
-
-        new_bureaufile = swap.get_new_filename(tonights.parameters,'bureau')
-        print "SWAP: saving agents to "+new_bureaufile
-        swap.write_pickle(bureau,new_bureaufile)
-        tonights.parameters['bureaufile'] = new_bureaufile
-
-        new_samplefile = swap.get_new_filename(tonights.parameters,'collection')
-        print "SWAP: saving subjects to "+new_samplefile
-        swap.write_pickle(sample,new_samplefile)
-        tonights.parameters['samplefile'] = new_samplefile
-        
-        metadatafile = swap.get_new_filename(tonights.parameters,'metadata')
-        print "SWAP: saving metadata to "+metadatafile
-        swap.write_pickle(subjects,metadatafile)
-        tonights.parameters['metadatafile'] = metadatafile
-
-    # ------------------------------------------------------------------
-
     if report:
 
         # Output list of subjects to retire, based on this batch of
@@ -537,6 +501,49 @@ def SWAP(argv):
             "written to "+catalog        
 
     # ------------------------------------------------------------------
+    ####################################################################
+
+    # Set up outputs based on where we got to -- IF WE'RE NOT DOING ML
+    if not machine:
+    
+        # And what will we call the new files we make? Use the Start Time
+        tonights.parameters['finish'] = tonights.parameters['start']
+
+        # Use the following directory for output lists and plots:
+        tonights.parameters['trunk'] = tonights.parameters['survey']+'_'+\
+                                       tonights.parameters['finish']
+
+        tonights.parameters['dir'] =os.getcwd()+'/'+tonights.parameters['trunk']
+        
+        if not os.path.exists(tonights.parameters['dir']):
+            os.makedirs(tonights.parameters['dir'])
+
+    # ------------------------------------------------------------------
+    # Pickle the bureau, sample, and database, if required. If we do
+    # this, its because we want to pick up from where we left off
+    # (ie with SWAPSHOP) - so save the pickles in the $cwd. This is
+    # taken care of in io.py. Note that we update the parameters as
+    # we go - this will be useful later when we write update.config.
+    
+    
+    if tonights.parameters['repickle'] and count > 0:
+
+        new_bureaufile = swap.get_new_filename(tonights.parameters,'bureau')
+        print "SWAP: saving agents to "+new_bureaufile
+        swap.write_pickle(bureau,new_bureaufile)
+        tonights.parameters['bureaufile'] = new_bureaufile
+
+        new_samplefile = swap.get_new_filename(tonights.parameters,'collection')
+        print "SWAP: saving subjects to "+new_samplefile
+        swap.write_pickle(sample,new_samplefile)
+        tonights.parameters['samplefile'] = new_samplefile
+        
+        metadatafile = swap.get_new_filename(tonights.parameters,'metadata')
+        print "SWAP: saving metadata to "+metadatafile
+        swap.write_pickle(subjects,metadatafile)
+        tonights.parameters['metadatafile'] = metadatafile
+
+    # ------------------------------------------------------------------
     # Now, if there is more to do, over-write the update.config file so
     # that we can carry on where we left off. Note that the pars are
     # already updated! :-)
@@ -567,8 +574,7 @@ def SWAP(argv):
     random_file.close();
     swap.write_config(configfile, tonights.parameters)
 
-
-    # ------------------------------------------------------------------
+    #------------------------------------------------------------------
 
     if plots:
 
@@ -651,8 +657,6 @@ def SWAP(argv):
         # Finally, write a PDF report:
 
         swap.write_report(tonights.parameters,bureau,sample)
-
-    # ------------------------------------------------------------------
 
     print swap.doubledashedline
     return
