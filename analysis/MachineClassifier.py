@@ -220,7 +220,6 @@ def MachineClassifier(options, args):
         N = swap.write_list(sample,new_retirementfile,item='retired_subject')
         print "SWAP: "+str(N)+" lines written to "+new_retirementfile
 
-
         # Also write out catalogs of subjects, including the ZooID, subject ID,
         # how many classifications, and probability:
         # -------------------------------------------------------------------
