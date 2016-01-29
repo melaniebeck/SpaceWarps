@@ -39,7 +39,6 @@ try:
 except: 
     count = 0
 
-print count
 
 while more_to_do:
     # If this is the first run, need to initialize the Machine's Collection
@@ -54,6 +53,7 @@ while more_to_do:
 
     # take candidates from SWAP as training input for machine
     os.system("python MachineClassifier.py -c update.config")
+    #os.system("python MachineClassifier.py -c %s"%config)
 
     count+=1
 

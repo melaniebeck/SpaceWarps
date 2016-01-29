@@ -94,7 +94,7 @@ def write_pickle(contents,filename):
 # ----------------------------------------------------------------------------
 # Write out a simple list of subject IDs, of subjects to be retired.
 
-def write_list(sample, filename, item=None):
+def write_list(sample, filename, item=None, source=None):
 
     count = 0
     F = open(filename,'w')
@@ -104,7 +104,10 @@ def write_list(sample, filename, item=None):
 
         if item == 'retired_subject':
             if subject.state == 'inactive':
-                string = subject.ZooID
+                if source == 'ML' and subject.retiredby == 'machine':
+                    string = subject.ZooID
+                elif subject.retiredby == 'swap':
+                    string = subject.ZooID
 
         elif item == 'candidate':
             if subject.kind == 'test' and subject.status == 'detected':
@@ -144,7 +147,7 @@ def read_list(filename):
 # ----------------------------------------------------------------------------
 # Write out a multi-column catalog of high probability candidates.
 
-def write_catalog(sample, bureau, filename, thresholds, kind='test'):
+def write_catalog(sample,filename,thresholds,kind='test',source=None):
 
     Nsubjects = 0
     Nlenses = 0
@@ -157,29 +160,47 @@ def write_catalog(sample, bureau, filename, thresholds, kind='test'):
         subject = sample.member[ID]
         P = subject.mean_probability
 
-        if kind=='rejected' and subject.state == 'inactive':
-            output = (subject.ZooID, P, subject.exposure, subject.location)
-            # Write a new line:
-            F.write('%s  %9.7f  %s       %s\n'\
-                    %output)
-            Nlenses += 1 
+        if source == 'ML':
+            if kind=='rejected' and subject.state == 'inactive' and \
+               subject.retiredby == 'machine':
+                output = (subject.ZooID, P, subject.exposure, subject.location)
+                # Write a new line:
+                F.write('%s  %9.7f  %s       %s\n'\
+                        %output)
+                Nlenses += 1 
 
-        elif kind=='detected' and subject.status == 'detected':
-            output = (subject.ZooID, P, subject.exposure, subject.location)
-            F.write('%s  %9.7f  %s       %s\n'%output)
-            Nlenses += 1            
+            elif kind=='detected' and subject.status == 'detected' and \
+                 subject.retiredby == 'machine':
+                output = (subject.ZooID, P, subject.exposure, subject.location)
+                F.write('%s  %9.7f  %s       %s\n'%output)
+                Nlenses += 1            
 
-        elif P > thresholds['rejection'] and subject.kind == kind:
-
-            #zooid = subject.ZooID
-            #png = subject.location
-            #Nclass = subject.exposure
-            output = (subject.ZooID, P, subject.exposure, subject.location)
-            # Write a new line:
-            F.write('%s  %9.7f  %s       %s\n'\
-                    %output)
-            Nlenses += 1
-
+        else:
+            if kind=='rejected' and subject.state == 'inactive' and \
+               subject.retiredby == 'swap':
+                output = (subject.ZooID, P, subject.exposure, subject.location)
+                # Write a new line:
+                F.write('%s  %9.7f  %s       %s\n'\
+                        %output)
+                Nlenses += 1 
+                
+            elif kind=='detected' and subject.status == 'detected' and \
+                 subject.retiredby == 'swap':
+                output = (subject.ZooID, P, subject.exposure, subject.location)
+                F.write('%s  %9.7f  %s       %s\n'%output)
+                Nlenses += 1            
+                
+            elif P > thresholds['rejection'] and subject.kind == kind:
+                
+                #zooid = subject.ZooID
+                #png = subject.location
+                #Nclass = subject.exposure
+                output = (subject.ZooID, P, subject.exposure, subject.location)
+                # Write a new line:
+                F.write('%s  %9.7f  %s       %s\n'\
+                        %output)
+                Nlenses += 1
+                
         Nsubjects += 1
 
     F.close()
@@ -188,10 +209,13 @@ def write_catalog(sample, bureau, filename, thresholds, kind='test'):
 
 # ----------------------------------------------------------------------------
 
-def get_new_filename(pars,flavour):
+def get_new_filename(pars,flavour,source=None):
 
     # Usually, this is what we want filenames to look like:
-    stem = pars['trunk']+'_'+flavour
+    if source == 'ML': 
+        stem = '%s_ML%s'%(pars['trunk'],flavour)
+    else:  
+        stem = '%s_%s'%(pars['trunk'],flavour)
     folder = pars['dir']
     ext = 'txt'
     # Pickles are an exception though!
@@ -210,8 +234,10 @@ def get_new_filename(pars,flavour):
                      'detected_catalog']:
         ext = 'txt'
         folder = pars['dir']
+        
     else:
         raise Exception("SWAP: io: unknown flavour "+flavour)
+      
         
     return folder+'/'+stem+'.'+ext
 
@@ -245,6 +271,7 @@ def write_config(filename, pars):
     shortlist = ['survey', \
                  'start', \
                  'end', \
+                 'increment',\
                  'bureaufile', \
                  'samplefile', \
                  'metadatafile',\

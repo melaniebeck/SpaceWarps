@@ -105,8 +105,6 @@ def SWAP(argv):
     # ------------------------------------------------------------------
     # Read in run configuration:
 
-    last = '2009-02-17_00:00:00' ########################################
-
     tonights = swap.Configuration(configfile)
 
     # Read the pickled random state file
@@ -185,7 +183,7 @@ def SWAP(argv):
     if tonights.parameters['start'] == 'the_beginning':
         t1 = datetime.datetime(1978, 2, 28, 12, 0, 0, 0)
     elif (tonights.parameters['start'] == 'dont_bother') or \
-         (tonights.parameters['start'] == last):
+         (tonights.parameters['start'] == tonights.parameters['end']):
         print "SWAP: looks like there is nothing more to do!"
         swap.set_cookie(False)
         print swap.doubledashedline
@@ -198,11 +196,17 @@ def SWAP(argv):
 
     # When will we stop considering classifications?
     if tonights.parameters['end'] == 'the_end_of_time':
-        t2 = datetime.datetime(2100, 1, 1, 12, 0, 0, 0)
+        tstop = datetime.datetime(2100, 1, 1, 12, 0, 0, 0)
     else:
-        t2 = datetime.datetime.strptime(tonights.parameters['end'], 
+        tstop = datetime.datetime.strptime(tonights.parameters['end'], 
                                         '%Y-%m-%d_%H:%M:%S')
     print "SWAP: and "+tonights.parameters['end']
+
+    # in what timestep shall we select classifications to analyze? 
+    inc = tonights.parameters['increment']
+    increment = datetime.timedelta(days=inc)
+    print "SWAP: in increments of %.1f DAY(S)"%inc
+    t2 = t1 + increment
 
     # How many classifications do we look at per batch?
     try: N_per_batch = tonights.parameters['N_per_batch']
@@ -210,11 +214,9 @@ def SWAP(argv):
     print "SWAP: setting the number of classifications made in this "\
         "batch to ",N_per_batch
 
-
     try: 
         prior = tonights.parameters['prior']
     except: 
-        #prior = 2e-4
         tonights.parameters['prior'] = prior
     print "SWAP: set prior for analysis to ",prior
 
@@ -230,10 +232,10 @@ def SWAP(argv):
     thresholds['detection'] = tonights.parameters['detection_threshold']
     thresholds['rejection'] = tonights.parameters['rejection_threshold']
 
-
     # will we perform machine learning after SWAP?
     try: machine = tonights.parameters['machine']
-    else: machine = False
+    except: machine = False
+    print "SWAP: running MachineClassifier.py after this run?",machine
 
     # ------------------------------------------------------------------
     # Read in, or create, a bureau of agents who will represent the
@@ -249,14 +251,11 @@ def SWAP(argv):
     # ------------------------------------------------------------------
     # Read in an old pickle or open the base fits file representing the 
     # entire metadata for all subjects in the database
-
-    try: 
-        metafile = tonights.parameters['metadatafile']
-        subjects = swap.read_pickle(metafile, 'metadata')
-        print "SWAP: read an old metadata file from %s"%metafile
-    except:
-        subjects = Table.read('GZ2assets_Nair_Morph.fits') 
-        print "SWAP: opened a new metadata file"
+    
+    metafile = tonights.parameters['metadatafile']
+    subjects = swap.read_pickle(metafile, 'metadata')
+    print "SWAP: read the metadata file from %s"%metafile
+    #subjects = Table.read('GZ2assets_Nair_Morph.fits') 
 
     # ------------------------------------------------------------------
     # Open up database:
@@ -408,18 +407,26 @@ def SWAP(argv):
 
     # All good things come to an end:
     if count == 0:
-        print "SWAP: if we're not plotting, something might be wrong: 0 classifications found."
+        print "SWAP: if we're not plotting, something might be wrong:"
+        print "SWAP: 0 classifications found."
         t = t1
         more_to_do = False
         # return
-    #elif count < count_max: # ie we didn't make it through the whole batch  this time!
+    #elif count < count_max: # ie we didn't make it through the whole \
+    # batch  this time!
     #more_to_do = False
     else:
         more_to_do = True
 
     # ------------------------------------------------------------------
-
+    #                       WRITE REPORTS/CATALOGS
+    # ------------------------------------------------------------------
     if report:
+
+        tonights.parameters['dir'] =os.getcwd()+'/'+tonights.parameters['trunk']
+        
+        if not os.path.exists(tonights.parameters['dir']):
+            os.makedirs(tonights.parameters['dir'])
 
         # Output list of subjects to retire, based on this batch of
         # classifications. Note that what is needed here is the ZooID,
@@ -462,61 +469,44 @@ def SWAP(argv):
         # -------------------------------------------------------------------
         catalog = swap.get_new_filename(tonights.parameters,'candidate_catalog')
         print "SWAP: saving catalog of high probability subjects..."
-        Nlenses,Nsubjects = swap.write_catalog(sample,bureau,catalog,
-                                               thresholds,kind='test')
+        Nlenses,Nsubjects = swap.write_catalog(sample,catalog,thresholds,
+                                               kind='test')
         print "SWAP: From "+str(Nsubjects)+" subjects classified,"
         print "SWAP: "+str(Nlenses)+" candidates (with P > rejection) "\
             "written to "+catalog
 
         catalog = swap.get_new_filename(tonights.parameters,'sim_catalog')
         print "SWAP: saving catalog of high probability subjects..."
-        Nsims,Nsubjects = swap.write_catalog(sample,bureau,catalog,
-                                             thresholds,kind='sim')
+        Nsims,Nsubjects = swap.write_catalog(sample,catalog,thresholds,
+                                             kind='sim')
         print "SWAP: From "+str(Nsubjects)+" subjects classified,"
         print "SWAP: "+str(Nsims)+" sim 'candidates' (with P > "\
             "rejection) written to "+catalog
 
         catalog = swap.get_new_filename(tonights.parameters,'dud_catalog')
         print "SWAP: saving catalog of high probability subjects..."
-        Nduds,Nsubjects = swap.write_catalog(sample,bureau,catalog,
-                                             thresholds,kind='dud')
+        Nduds,Nsubjects = swap.write_catalog(sample,catalog,thresholds,
+                                             kind='dud')
         print "SWAP: From "+str(Nsubjects)+" subjects classified,"
         print "SWAP: "+str(Nduds)+" dud 'candidates' (with P > "\
             "rejection) written to "+catalog
 
         catalog =swap.get_new_filename(tonights.parameters,'retired_catalog')
         print "SWAP: saving catalog of retired subjects..."
-        Nretired, Nsubjects = swap.write_catalog(sample,bureau,catalog,
-                                                 thresholds,kind='rejected')
+        Nretired, Nsubjects = swap.write_catalog(sample,catalog,thresholds,
+                                                 kind='rejected')
         print "SWAP: From "+str(Nsubjects)+" subjects classified,"
         print "SWAP: "+str(Nretired)+" retired (with P < rejection) "\
             "written to "+catalog
        
         catalog =swap.get_new_filename(tonights.parameters,'detected_catalog')
         print "SWAP: saving catalog of detected subjects..."
-        Ndetected, Nsubjects = swap.write_catalog(sample,bureau,catalog,
-                                                  thresholds,kind='detected')
+        Ndetected, Nsubjects = swap.write_catalog(sample,catalog,thresholds,
+                                                  kind='detected')
         print "SWAP: From "+str(Nsubjects)+" subjects classified,"
         print "SWAP: "+str(Ndetected)+" detected (with P > acceptance) "\
             "written to "+catalog        
 
-    # ------------------------------------------------------------------
-    ####################################################################
-
-    # Set up outputs based on where we got to -- IF WE'RE NOT DOING ML
-    if not machine:
-    
-        # And what will we call the new files we make? Use the Start Time
-        tonights.parameters['finish'] = tonights.parameters['start']
-
-        # Use the following directory for output lists and plots:
-        tonights.parameters['trunk'] = tonights.parameters['survey']+'_'+\
-                                       tonights.parameters['finish']
-
-        tonights.parameters['dir'] =os.getcwd()+'/'+tonights.parameters['trunk']
-        
-        if not os.path.exists(tonights.parameters['dir']):
-            os.makedirs(tonights.parameters['dir'])
 
     # ------------------------------------------------------------------
     # Pickle the bureau, sample, and database, if required. If we do
@@ -524,7 +514,6 @@ def SWAP(argv):
     # (ie with SWAPSHOP) - so save the pickles in the $cwd. This is
     # taken care of in io.py. Note that we update the parameters as
     # we go - this will be useful later when we write update.config.
-    
     
     if tonights.parameters['repickle'] and count > 0:
 
@@ -544,26 +533,31 @@ def SWAP(argv):
         tonights.parameters['metadatafile'] = metadatafile
 
     # ------------------------------------------------------------------
-    # Now, if there is more to do, over-write the update.config file so
-    # that we can carry on where we left off. Note that the pars are
-    # already updated! :-)
+    # If there is more to do we need to update the config file for the next day
+    # UNLESS we're running the Machine! (Machine will take care of updating day)
 
-    d = datetime.timedelta(days=1)
     if more_to_do:
-        last = datetime.datetime.strptime(last, '%Y-%m-%d_%H:%M:%S')
-        tonights.parameters['start']=tonights.parameters['end']
-        if t2 + d > last: 
-            end = last
+
+        # if t2 == stop date, we're done! 
+        # Turn off cookie and start the big plots
+        if t2 == tstop: 
             swap.set_cookie(False)
             plots = True
+
+        # otherwise, increment by the timestep 
+        # Turn cookie on and update the config "start" (IF NOT MACHINE)
         else: 
-            end = t2 + d
             swap.set_cookie(True)
-        tonights.parameters['end'] = end.strftime('%Y-%m-%d_%H:%M:%S')
+            if not machine:
+                tonights.parameters['start'] = t2.strftime('%Y-%m-%d_%H:%M:%S')
+                
     else:
         swap.set_cookie(False)
     # SWAPSHOP will read this cookie and act accordingly.
 
+    
+    # UPDATE CONFIG FILE with pickle filenames, dir/trunk, and (maybe) new day
+    # ----------------------------------------------------------------------
     configfile = 'update.config'
 
     # Random_file needs updating, else we always start from the same random
@@ -573,9 +567,8 @@ def SWAP(argv):
     cPickle.dump(random_state,random_file);
     random_file.close();
     swap.write_config(configfile, tonights.parameters)
-
     #------------------------------------------------------------------
-
+    
     if plots:
 
         # Make plots! Can't plot everything - uniformly sample 200 of each

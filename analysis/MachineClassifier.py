@@ -3,7 +3,7 @@ import swap
 from optparse import OptionParser
 from astropy.table import Table, vstack
 import pdb
-from datetime import datetime
+import datetime
 import numpy as np
 import os, subprocess
 from sklearn.neighbors import KNeighborsClassifier
@@ -186,7 +186,8 @@ def MachineClassifier(options, args):
             # -------------------------------------------------------------
             thresholds = {'detection':0.,'rejection':0.}
             if (p >= threshold) or (1-p >= threshold):
-                print p
+                print "BOOM! WE'VE GOT A MACHINE-CLASSIFIED SUBJECT:"
+                print "Probability:",p
                 # Initialize the subject in SWAP Collection
                 sample.member[ID] = swap.Subject(ID, str(s['name']), category,
                                                  kind,flavor,truth,thresholds,
@@ -208,70 +209,91 @@ def MachineClassifier(options, args):
         print "Size of ML sample:", MLsample.size()
 
       
-    if report:
+        if tonights.parameters['report']:
+            
+            # Output list of subjects to retire, based on this batch of
+            # classifications. Note that what is needed here is the ZooID,
+            # not the subject ID:
+            
+            new_retirementfile = swap.get_new_filename(tonights.parameters,\
+                                                   'retire_these', source='ML')
+            print "SWAP: saving Machine-retired subject Zooniverse IDs..."
+            N = swap.write_list(MLsample,new_retirementfile,
+                                item='retired_subject', source='ML')
+            print "SWAP: "+str(N)+" lines written to "+new_retirementfile
+            
+            # write catalogs of smooth/not over MLthreshold
+            # ---------------------------------------------------------------
+            catalog = swap.get_new_filename(tonights.parameters,
+                                            'retired_catalog', source='ML')
+            print "SWAP: saving catalog of Machine-retired subjects..."
+            Nretired, Nsubjects = swap.write_catalog(MLsample,bureau,catalog,
+                                        threshold,kind='rejected', source='ML')
+            print "SWAP: From "+str(Nsubjects)+" subjects classified,"
+            print "SWAP: "+str(Nretired)+" retired (with P < rejection) "\
+                "written to "+catalog
+            
+            catalog = swap.get_new_filename(tonights.parameters,
+                                            'detected_catalog', source='ML')
+            print "SWAP: saving catalog of Machine detected subjects..."
+            Ndetected, Nsubjects = swap.write_catalog(MLsample, bureau,catalog,
+                                        threshold, kind='detected', source='ML')
+            print "SWAP: From "+str(Nsubjects)+" subjects classified,"
+            print "SWAP: "+str(Ndetected)+" detected (with P > MLthreshold) "\
+                "written to "+catalog        
 
-        # Output list of subjects to retire, based on this batch of
-        # classifications. Note that what is needed here is the ZooID,
-        # not the subject ID:
-
-        new_retirementfile = swap.get_new_filename(tonights.parameters,\
-                                                   'retire_these')
-        print "SWAP: saving retiree subject Zooniverse IDs..."
-        N = swap.write_list(sample,new_retirementfile,item='retired_subject')
-        print "SWAP: "+str(N)+" lines written to "+new_retirementfile
-
-        # Also write out catalogs of subjects, including the ZooID, subject ID,
-        # how many classifications, and probability:
-        # -------------------------------------------------------------------
-        catalog = swap.get_new_filename(tonights.parameters,'retired_catalog')
-        print "SWAP: saving catalog of retired subjects..."
-        Nretired, Nsubjects = swap.write_catalog(sample,bureau,catalog,
-                                                 thresholds,kind='rejected')
-        print "SWAP: From "+str(Nsubjects)+" subjects classified,"
-        print "SWAP: "+str(Nretired)+" retired (with P < rejection) "\
-            "written to "+catalog
-       
-        catalog =swap.get_new_filename(tonights.parameters,'detected_catalog')
-        print "SWAP: saving catalog of detected subjects..."
-        Ndetected, Nsubjects = swap.write_catalog(sample,bureau,catalog,
-                                                  thresholds,kind='detected')
-        print "SWAP: From "+str(Nsubjects)+" subjects classified,"
-        print "SWAP: "+str(Ndetected)+" detected (with P > acceptance) "\
-            "written to "+catalog        
-
-
-    # Set up output based on where we got to
-    # ------------------------------------------------------------------
-    # And what will we call the new files we make? Use the Start Time
-    tonights.parameters['finish'] = tonights.parameters['start']
-    
-    # Use the following directory for output lists and plots:
-    tonights.parameters['trunk'] = tonights.parameters['survey']+'_'+\
-                                   tonights.parameters['finish']
-    
-    tonights.parameters['dir'] =os.getcwd()+'/'+tonights.parameters['trunk']
+    # If is hasn't been done already, save the current directory
+    # -----------------------------------------------------------------------
+    tonights.parameters['dir'] = os.getcwd()+'/'+tonights.parameters['trunk']
     
     if not os.path.exists(tonights.parameters['dir']):
         os.makedirs(tonights.parameters['dir'])
 
+
+    # Repickle all the shits
+    # -----------------------------------------------------------------------
     if tonights.parameters['repickle']:
 
-        new_bureaufile = swap.get_new_filename(tonights.parameters,'bureau')
-        print "SWAP: saving agents to "+new_bureaufile
-        swap.write_pickle(bureau,new_bureaufile)
-        tonights.parameters['bureaufile'] = new_bureaufile
-
         new_samplefile = swap.get_new_filename(tonights.parameters,'collection')
-        print "SWAP: saving subjects to "+new_samplefile
+        print "SWAP: saving SWAP subjects to "+new_samplefile
         swap.write_pickle(sample,new_samplefile)
         tonights.parameters['samplefile'] = new_samplefile
         
+        new_samplefile=swap.get_new_filename(tonights.parameters,'MLcollection')
+        print "SWAP: saving test sample subjects to "+new_samplefile
+        swap.write_pickle(MLsample,new_samplefile)
+        tonights.parameters['MLsamplefile'] = new_samplefile
+
         metadatafile = swap.get_new_filename(tonights.parameters,'metadata')
         print "SWAP: saving metadata to "+metadatafile
         swap.write_pickle(subjects,metadatafile)
         tonights.parameters['metadatafile'] = metadatafile
        
-                                
+
+    # Update the time increment for SWAP's next run
+    # -----------------------------------------------------------------------
+    t2 = datetime.datetime.strptime(tonights.parameters['start'],
+                                    '%Y-%m-%d_%H:%M:%S') + \
+         datetime.timedelta(days=tonights.parameters['increment'])
+    tstop = datetime.datetime.strptime(tonights.parameters['end'],
+                                    '%Y-%m-%d_%H:%M:%S')
+    if t2 == tstop: 
+        plots = True
+    else:
+        tonights.parameters['start'] = t2.strftime('%Y-%m-%d_%H:%M:%S')
+                
+
+    # Update configfile to reflect Machine additions
+    # -----------------------------------------------------------------------
+    configfile = 'update.config'
+
+    random_file = open(tonights.parameters['random_file'],"w");
+    random_state = np.random.get_state();
+    cPickle.dump(random_state,random_file);
+    random_file.close();
+    swap.write_config(configfile, tonights.parameters)
+
+    #pdb.set_trace()
 
 if __name__ == '__main__':
     parser = OptionParser()
