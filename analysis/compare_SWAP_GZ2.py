@@ -8,11 +8,14 @@ from astropy.table import Table, vstack, join
 from optparse import OptionParser
 import swap
 
+from figure import set_pub
+
 connection = mdb.connect('localhost', 'root', '8croupier!', 'gz2')
 cursor = connection.cursor(mdb.cursors.DictCursor)
 
-
 def plot_retired(config):
+    set_pub()
+
     # PLOT #RETIRED/DETECTED PER DAY SWAP VS GZ2
     # ======================================================================
     classifications_per_day = True
@@ -28,7 +31,10 @@ def plot_retired(config):
 
     logfiles = ["logfiles_%s/GZ2_%i.log"%(config,i) for i in range(days)]
 
+
     for log in logfiles:
+        #pdb.set_trace()
+
         ret = subprocess.check_output("awk '/retired_catalog/ {print $2}' %s"
                                       %log, shell=True)
         det = subprocess.check_output("awk '/detected_catalog/ {print $2}' %s"
@@ -47,7 +53,7 @@ def plot_retired(config):
     undecided = total - (retired+detected)
     size = total[-1]
     
-    #'''
+    '''
     fig = plt.figure()
     ax = fig.add_subplot(111)
     dates = np.array([i for i in range(days)])
@@ -130,27 +136,43 @@ def plot_retired(config):
         batch = data[:days]
 
         # plot that shit!
-        gzclass = ax.plot(batch['col4'], color='purple', alpha=.25)
-        ax.fill_between(dates,0,batch['col4'],facecolor='purple',
-                        alpha=0.20, label='GZ2 classifications')
+        #gzclass = ax.plot(batch['col4'], color='purple', alpha=.25)
+        #ax.fill_between(dates,0,batch['col4'],facecolor='purple',
+        #                alpha=0.20, label='GZ2 classifications')
     
-    rets = ax.bar(dates, retired,width, color='r')
-    dets = ax.bar(dates, detected, width, color='b', bottom=retired)
-    orig = ax.bar(np.array(dates)+width, subjects_per_day, width, color='y')
+    #rets = ax.bar(dates, retired,width, color='r')
+    #dets = ax.bar(dates, detected, width, color='b', bottom=retired)
+    #tots = ax.bar(dates, detected+retired, width, color='r')
+    #orig = ax.bar(np.array(dates)+width, subjects_per_day, width, color='y')
+    tots = ax.fill_between(dates, detected+retired, color='y', 
+                           alpha=0.6, label='Filtering')
+    orig = ax.fill_between(dates, subjects_per_day, color='b', 
+                           alpha=0.5, label='GZ2')
     
-    ax.set_title("Cumulative Number of 'Retired' Subjects: SWAP vs. GZ2")
-    ax.set_xlabel("Days in GZ2")
-    ax.set_ylabel("Number of Subjects")
+    #ax.set_title("Cumulative Number of 'Retired' Subjects: SWAP vs. GZ2")
+    ax.set_title("Cumulative Number of Classified Subjects", fontsize=30, 
+                 weight='bold')
+    ax.set_xlabel("Time (days)",fontsize=26,weight='bold')
+    ax.set_ylabel("Number of Subjects",fontsize=26,weight='bold')
     #ax.set_yscale("log")
 
     ax.set_xticks(np.array(dates[::4])+width)
     ax.set_xticklabels(dates[::4])
+    ax.set_xlim(0,days-1)
     
-    ax.legend((dets[0],rets[0], orig[0], gzclass[0]), 
-              ("SWAP: 'Smooth'","SWAP: 'Not'", 'GZ2 > 25', 
-               'GZ2 classifications'), loc='best')
+    #ax.legend((dets[0],rets[0], orig[0], gzclass[0]), 
+    #          ("SWAP: 'Smooth'","SWAP: 'Not'", 'GZ2 > 25', 
+    #           'GZ2 classifications'), loc='best')
+    legend = ax.legend(loc='best')
+    frame = legend.get_frame()
+    frame.set_linewidth(2)
+    for label in legend.get_texts():
+        label.set_fontsize('large')
 
-    plt.savefig('classificationsperday_SWAPvGZ2_%i_%s.png'%(days,config))
+    #ax.legend((tots[0],orig[0]), ("Filtering", "GZ2"))
+    #plt.savefig('classificationsperday_SWAPvGZ2_%i_%s.png'%(days,config))
+    plt.tight_layout()
+    plt.savefig('DDF_classificationsperday.png')
     plt.show()
 
     return days
@@ -327,19 +349,25 @@ def main(options, args):
     #filename = 'GZ2_MainAll_SWAP_run3_5-29-2009.fits'
     '''
     # access last time-stamped directory in the sim of interest
-    directory = subprocess.check_output("ls -rt %s | tail -1"%options.config, 
-                                        shell=True).splitlines()[0]
-    basename = "GZ2_MainAll_SWAP_%s_%s"%(options.config, directory.split('_')[3])
+    #directory = subprocess.check_output("ls -rt %s | tail -1"%options.config, 
+    #                                    shell=True).splitlines()[0]
+    #basename ="GZ2_MainAll_SWAP_%s_%s"%(options.config,directory.split('_')[3])
+    directory = 'sup_0.75_run'
+    prefix = 'GZ2_sup_0.75_2009-05-03_00:00:00'
+    combofile = 'GZ2_MainAll_SWAP_run1_05-03-2009'
 
+    #days = plot_retired(options.config)
+    days = plot_retired('sup_0.75')
+    pdb.set_trace()
+
+    pwd = os.getcwd()
     try:
         joined = Table.read('%s.fits'%basename)
     except:
         print "Making joined catalog"
         # Prepare "retired" and "detected" catalogs -------------------------
-        detect = '%s/%s/%s_detected_catalog.txt'%(options.config,directory, 
-                                                  directory)
-        retire = '%s/%s/%s_retired_catalog.txt'%(options.config, directory, 
-                                                 directory)
+        detect = '%s/%s/%s_detected_catalog.txt'%(directory,prefix,prefix)
+        retire = '%s/%s/%s_retired_catalog.txt'%(directory,prefix,prefix)
         
         # read in the files and concatenate along rows
         detected = Table.read(detect, format='ascii')
@@ -347,16 +375,15 @@ def main(options, args):
         combined = vstack((detected,retired))
         
         # Now, match it against zoo2MainAll.fits
-        zoo2MainAll = Table.read('zoo2MainAll_urls.fits')
-        zoo2MainAll['zooid']=zoo2MainAll['dr7objid']
+        #zoo2MainAll = Table.read('zoo2MainAll_urls.fits')
+        #zoo2MainAll['zooid']=zoo2MainAll['dr7objid']
 
-        joined = join(zoo2MainAll, combined, keys='zooid')
+        #joined = join(zoo2MainAll, combined, keys='zooid')
         
-        Table.write(joined, '%s.fits'%basename)
+        #Table.write(joined, '%s.fits'%basename)
     
 
     # Now go to work --------------------------------------------------------
-    days = plot_retired(options.config)
     #plot_num_classifications_to_retire(joined, days, options.config)
 
     try: results = Table.read('%s_results.fits'%basename)

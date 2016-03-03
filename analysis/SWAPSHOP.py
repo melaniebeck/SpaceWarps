@@ -22,22 +22,22 @@ parser.add_option("-c","--config", dest="config_name", default=None)
 (options, args) = parser.parse_args()
 
 
-if options.startup: config = "startup.config"
-else: config = "update.config"
+if options.startup: 
+    config = "startup.config"
+    count = 0
+else: 
+    config = "update.config"
+    count = int(subprocess.check_output("ls %s/ | wc -l"%log_dir, shell=True))
 
-if options.config_name: log_dir = "logfiles_%s"%(options.config_name)
-else: log_dir = "logfiles"
+if options.config_name: 
+    log_dir = "logfiles_%s"%(options.config_name)
+else: 
+    log_dir = "logfiles"
 
 more_to_do = True
 
 
 if not os.path.exists(log_dir): os.makedirs(log_dir)
-
-
-try:
-    count = int(subprocess.check_output("ls %s/ | wc -l"%log_dir, shell=True))
-except: 
-    count = 0
 
 
 while more_to_do:

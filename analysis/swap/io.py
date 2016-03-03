@@ -58,7 +58,7 @@ def read_pickle(filename,flavour):
         contents = cPickle.load(F)
         F.close()
 
-        print "SWAP: read an old",contents,"from "+filename
+        print "SWAP: read an old contents from "+filename
 
     except:
 

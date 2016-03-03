@@ -1,13 +1,12 @@
 
 import swap
+import machine as ml
 from optparse import OptionParser
-from astropy.table import Table, vstack
+from astropy.table import Table
 import pdb
 import datetime
 import numpy as np
 import os, subprocess
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.ensemble import RandomForestClassifier
 import cPickle
 
 '''
@@ -21,67 +20,6 @@ Workflow:
    run machine classifier on test sample
 '''
 
-def whiten(data):
-    '''
-    data is 2D array
-    mean & std for each column used to normalize that column
-    '''
-    # Now we have a training sample. "Whiten" data.
-    for col in range(data.shape[1]):
-        mean = np.nanmean(data[:,col])
-        std = np.nanstd(data[:,col])
-        data[:,col] = (data[:,col]-mean)/std 
-    return data
-
-def extract_training(data, keys=['M20', 'C', 'elipt', 'A', 'G']):
-    '''
-    INPUTS:
-        astropy Table (or dictionary?)
-    
-    PURPOSE:
-        This function isolates those rows which have well-measured morphological 
-        features that can be fed into the machine classifiers, i.e. no nans or infs
-    
-    RETURNS:
-        original astropy Table with only those entries that pass selection
-        whitened np.array of the morphological parameters    
-    '''
-    morph = np.array([data[k] for k in keys], dtype='float32').T
-
-    # remove those which don't have morph parameters measured
-    training = ((~np.isnan(morph).any(1)) & (~np.isinf(morph).any(1)))
-
-    return data[training], whiten(morph[training])
-
-def runKNC(X_train, y_train, X_test, N=10, weight='uniform'):
-    # initialize the classifier
-    model = KNeighborsClassifier(N, weights=weight)
-
-    # train the classifier with training sample
-    model.fit(X_train, y_train)
-
-    # predict classifications for test sample
-    predictions = model.predict(X_test)
-
-    # obtain probabilities for those predictions
-    probabilities = model.predict_proba(X_test)
-
-    return predictions, probabilities
-
-def runRF(X_train, y_train, X_test, depth=None):
-    # Initialize the classifier
-    model = RandomForestClassifier(n_estimators=100, max_depth=depth)
-
-    # Trainin classifier with training sample
-    model.fit(X_train, y_train)
-
-    # Predict classifications for test sample
-    predictions = model.predict(X_test)
-
-    # Obtain probabilities for thos predictions
-    probabilities = model.predict_proba(X_test)
-
-    return predictions, probabilities
 
 def Nair_or_Not(subject):
     """
@@ -142,108 +80,178 @@ def MachineClassifier(options, args):
     MLsample = swap.read_pickle(tonights.parameters['MLsamplefile'],
                                 'MLcollection')
 
+    # read in or create the ML bureau for machine agents (history)
+    MLbureau = swap.read_pickle(tonights.parameters['MLbureaufile'], 'MLbureau')
+
     #-----------------------------------------------------------------------    
     #        DETERMINE IF THERE IS A TRAINING SAMPLE TO WORK WITH 
     #-----------------------------------------------------------------------
-    train = subjects[subjects['MLsample']=='train']
-    #train = subjects[:100]
-    if train:
-        test = subjects[subjects['MLsample']=='test']
-        #test = subjects[100:200]
-        train_data, train_sample = extract_training(train)
-        test_data, test_sample = extract_training(test)
-        labels = np.array([1 if p > 0.3 else 0 for p in train_data['MLsample']])
+    # TO DO: training sample should only select those which are NOT part of 
+    # validation sample (Nair catalog objects) 2/22/16
+
+    train_sample = subjects[subjects['MLsample']=='train']
+    train_meta, train_features = ml.extract_training(train_sample)
+    train_labels = np.array([1 if p > 0.3 else 0 for p in train_meta['label']])
+
+    # Validation sample should remain constant 
+    valid_sample = subjects[subjects['MLsample']=='valid']
+    valid_meta, valid_features = ml.extract_training(valid_sample)
+    valid_labels = []
+
+    if len(train) > 10:
+        test_sample = subjects[subjects['MLsample']=='test']
+        test_meta, test_features = ml.extract_training(test_sample)
+        
+        # loop through different machines? 
+        # Machine Name based on Metric Evaluation + Machine Algorithm? 
+        # MAKE EVALUATION METRIC/CRITERION ARRAYS???? 
+        # THEN WE CAN LOOP THROUGH THEM? 
+
+        pdb.set_trace()
+        # register an Agent for this Machine
+        try: test = MLbureau.member[Name]
+        except: MLbureau.member[Name] = swap.Agent_ML(Name, tonights.parameters)
+        ##### ADD EVALUATION METRIC AND EVAL CRITERION TO TONIGHTS.PARAMS ####
 
         #---------------------------------------------------------------    
-        #                 TRAIN THE MACHINE; GET PREDICTIONS 
+        #     TRAIN THE MACHINE; GET PREDICTIONS ON VALIDATION SAMPLE
         #---------------------------------------------------------------        
-        predictions, probabilities = runKNC(train_sample, labels, test_sample)
-        probs = np.array([p[0] for p in probabilities])
+        predictions, probas, model = ml.runKNC(train_features, train_labels, 
+                                               valid_features)
 
-        #---------------------------------------------------------------    
-        #                    PROCESS PREDICTIONS/PROBS
-        #---------------------------------------------------------------
-        for s,p,l in zip(test_data,probs,predictions):
-            ID = str(s['id'])
+        # DETERMINE IF MACHINE TRAINS AT/ABOVE ==>CONDITION<== ??
+        # 1. use predictions/probas to compute various metrics
+        fps, tps, thresh = metrics._binary_clf_curve(truth, probas[:,1])
 
-            descriptions = Nair_or_Not(s)
-            category, kind, flavor, truth = descriptions
+        # Should this be a function in the agent_ML.py object? 
+        metrics = metrics.compute_binary_metrics(fps, tps)
+        ACC, TPR, FPR, FNR, TNR, PPV, FDR, FOR, NPV = metrics
 
-            # LOAD EACH TEST SUBJECT INTO MACHINE COLLECTION
-            # -------------------------------------------------------------
-            try: test = MLsample.member[ID]
-            except: MLsample.member[ID] = swap.Subject_ML(ID, str(s['name']), 
-                            category, kind,truth,threshold,s['external_ref'])
+        # 2. record those metrics for each night (and each machine)
+        #### GET DATE FROM TONIGHTS.PARAMETERS? #####
+        MLbureau.member[Name].record(training_sample_size=len(train), 
+                                     with_accuracy=ACC,
+                                     smooth_completeness=TPR,
+                                     feature_completeness=TNR, 
+                                     smooth_contamination=PPV, 
+                                     feature_contamination=FOR, 
+                                     at_time=None)
+        
+        # 3. compare the metric of choice with the evaluation criterion to
+        # see if this machine has sufficiently learned? 
+        # ... what if my criterion is simply "Maximize Accuracy"? 
+        # ... or minimize feature contamination? these require that we 
+        # compare tonight's machine with the previous night's machine 
+        # But if my criterion is simply "have feature contam less than 20%"
+        # then it's easy.... 
+        metrics = ml.analyse_performance(predictions, probas)     
+
+        # 4. If the machine is sufficiently trained, send it on!
+        if metrics > threshold: 
+            condition = True
+
+        pdb.set_trace()
+        
+        # IF TRAINED MACHINE PREDICTS WELL ON VALIDATION .... 
+        if condition:
+            #---------------------------------------------------------------    
+            #                 APPLY MACHINE TO TEST SAMPLE
+            #--------------------------------------------------------------- 
+            # This requires that my runKNC function returns the Machine Object
+            shitski=5
+      
+            #---------------------------------------------------------------    
+            #                    PROCESS PREDICTIONS/PROBS
+            #---------------------------------------------------------------
+            for s,p,l in zip(test_meta, probas, predictions):
+                ID = str(s['id'])
+
+                descriptions = Nair_or_Not(s)
+                category, kind, flavor, truth = descriptions
+
+                # LOAD EACH TEST SUBJECT INTO MACHINE COLLECTION
+                # -------------------------------------------------------------
+                try: 
+                    test = MLsample.member[ID]
+                except: MLsample.member[ID] = swap.Subject_ML(ID,
+                                            str(s['name']), category, kind,
+                                            truth,threshold,s['external_ref'])
                 
-            tstring = datetime.now().strftime('%Y-%m-%d_%H:%M:%S')
-            MLsample.member[ID].was_described(by='knn', as_being=1, withp=p, 
-                                              at_time=tstring)
+                tstring = datetime.now().strftime('%Y-%m-%d_%H:%M:%S')
+                MLsample.member[ID].was_described(by='knn', as_being=1, 
+                                                  withp=p, at_time=tstring)
 
-            # NOTE: if subject is Nair (training) it doesn't get flagged as 
-            # inactive but it can be flagged as detected/rejected
+                # NOTE: if subject is Nair (training) it doesn't get flagged as 
+                # inactive but it can be flagged as detected/rejected
 
-            # IF MACHINE P >= THRESHOLD, INSERT INTO SWAP COLLECTION
-            # -------------------------------------------------------------
-            thresholds = {'detection':0.,'rejection':0.}
-            if (p >= threshold) or (1-p >= threshold):
-                print "BOOM! WE'VE GOT A MACHINE-CLASSIFIED SUBJECT:"
-                print "Probability:",p
-                # Initialize the subject in SWAP Collection
-                sample.member[ID] = swap.Subject(ID, str(s['name']), category,
-                                                 kind,flavor,truth,thresholds,
-                                                 s['external_ref'],0.) 
-                sample.member[ID].retiredby = 'machine'
+
+                # IF MACHINE P >= THRESHOLD, INSERT INTO SWAP COLLECTION
+                # -------------------------------------------------------------
+                thresholds = {'detection':0.,'rejection':0.}
+                if (p >= threshold) or (1-p >= threshold):
+                    print "BOOM! WE'VE GOT A MACHINE-CLASSIFIED SUBJECT:"
+                    print "Probability:",p
+                    # Initialize the subject in SWAP Collection
+                    sample.member[ID] = swap.Subject(ID, str(s['name']), 
+                                            category, kind,flavor,truth,
+                                            thresholds, s['external_ref'],0.) 
+                    sample.member[ID].retiredby = 'machine'
                 
-                # Flag subject as 'INACTIVE' / 'DETECTED' / 'REJECTED'
-                # ----------------------------------------------------------
-                if p >= threshold:
-                    sample.member[str(s['id'])].state = 'inactive'
-                elif 1-p >= threshold:
-                    sample.member[str(s['id'])].status = 'rejected' 
+                    # Flag subject as 'INACTIVE' / 'DETECTED' / 'REJECTED'
+                    # ----------------------------------------------------------
+                    if p >= threshold:
+                        sample.member[str(s['id'])].state = 'inactive'
+                    elif 1-p >= threshold:
+                        sample.member[str(s['id'])].status = 'rejected' 
 
-
-        #---------------------------------------------------------------    
-        #                 SAVE MACHINE METADATA? 
-        #---------------------------------------------------------------
-        print "Size of SWAP sample:", sample.size()
-        print "Size of ML sample:", MLsample.size()
+                        
+            #---------------------------------------------------------------    
+            #                 SAVE MACHINE METADATA? 
+            #---------------------------------------------------------------
+            print "Size of SWAP sample:", sample.size()
+            print "Size of ML sample:", MLsample.size()
 
       
-        if tonights.parameters['report']:
+            if tonights.parameters['report']:
+                
+                # Output list of subjects to retire, based on this batch of
+                # classifications. Note that what is needed here is the ZooID,
+                # not the subject ID:
             
-            # Output list of subjects to retire, based on this batch of
-            # classifications. Note that what is needed here is the ZooID,
-            # not the subject ID:
-            
-            new_retirementfile = swap.get_new_filename(tonights.parameters,\
+                new_retirementfile = swap.get_new_filename(tonights.parameters,\
                                                    'retire_these', source='ML')
-            print "SWAP: saving Machine-retired subject Zooniverse IDs..."
-            N = swap.write_list(MLsample,new_retirementfile,
-                                item='retired_subject', source='ML')
-            print "SWAP: "+str(N)+" lines written to "+new_retirementfile
+                print "SWAP: saving Machine-retired subject Zooniverse IDs..."
+                N = swap.write_list(MLsample,new_retirementfile,
+                                    item='retired_subject', source='ML')
+                print "SWAP: "+str(N)+" lines written to "+new_retirementfile
             
-            # write catalogs of smooth/not over MLthreshold
-            # ---------------------------------------------------------------
-            catalog = swap.get_new_filename(tonights.parameters,
+                # write catalogs of smooth/not over MLthreshold
+                # -------------------------------------------------------------
+                catalog = swap.get_new_filename(tonights.parameters,
                                             'retired_catalog', source='ML')
-            print "SWAP: saving catalog of Machine-retired subjects..."
-            Nretired, Nsubjects = swap.write_catalog(MLsample,bureau,catalog,
-                                        threshold,kind='rejected', source='ML')
-            print "SWAP: From "+str(Nsubjects)+" subjects classified,"
-            print "SWAP: "+str(Nretired)+" retired (with P < rejection) "\
-                "written to "+catalog
+                print "SWAP: saving catalog of Machine-retired subjects..."
+                Nretired, Nsubjects = swap.write_catalog(MLsample,bureau,
+                                                catalog, threshold,
+                                                kind='rejected', source='ML')
+                print "SWAP: From "+str(Nsubjects)+" subjects classified,"
+                print "SWAP: "+str(Nretired)+" retired (with P < rejection) "\
+                    "written to "+catalog
             
-            catalog = swap.get_new_filename(tonights.parameters,
+                catalog = swap.get_new_filename(tonights.parameters,
                                             'detected_catalog', source='ML')
-            print "SWAP: saving catalog of Machine detected subjects..."
-            Ndetected, Nsubjects = swap.write_catalog(MLsample, bureau,catalog,
-                                        threshold, kind='detected', source='ML')
-            print "SWAP: From "+str(Nsubjects)+" subjects classified,"
-            print "SWAP: "+str(Ndetected)+" detected (with P > MLthreshold) "\
-                "written to "+catalog        
+                print "SWAP: saving catalog of Machine detected subjects..."
+                Ndetected, Nsubjects = swap.write_catalog(MLsample, bureau,
+                                                catalog, threshold, 
+                                                kind='detected', source='ML')
+                print "SWAP: From "+str(Nsubjects)+" subjects classified,"
+                print "SWAP: %i detected (with P > MLthreshold) "\
+                "written to %s"%(Ndetected, catalog)    
+
+
+    
 
     # If is hasn't been done already, save the current directory
-    # -----------------------------------------------------------------------
+    # ---------------------------------------------------------------------
     tonights.parameters['dir'] = os.getcwd()+'/'+tonights.parameters['trunk']
     
     if not os.path.exists(tonights.parameters['dir']):
@@ -293,7 +301,7 @@ def MachineClassifier(options, args):
     random_file.close();
     swap.write_config(configfile, tonights.parameters)
 
-    #pdb.set_trace()
+    pdb.set_trace()
 
 if __name__ == '__main__':
     parser = OptionParser()

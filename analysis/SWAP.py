@@ -321,12 +321,11 @@ def SWAP(argv):
         # flip that subject from Test to Train sample in the ML Collection
         if (sample.member[ID].status != 'undecided') or \
            (sample.member[ID].state == 'inactive'):
-            item = np.where(subjects['id']==int(sample.member[ID].ZooID))
-            print "item == ID-1?", item[0] == int(ID)-1
             subjects['MLsample'][int(ID)-1] = 'train'
-            subjects['label'][item] = P
-            pdb.set_trace()
-
+            subjects['label'][int(ID)-1] = P
+            print "====================================================="
+            print "=======  TRAINING SAMPLE HAS A NEW MEMBER!!!  ======="
+            print "ID: ",ID," LABEL:",P
 
         #-------------------------------------------------------------------
         #                 UPDATE AGENT'S CONFUSION MATRIX
@@ -422,8 +421,10 @@ def SWAP(argv):
     #                       WRITE REPORTS/CATALOGS
     # ------------------------------------------------------------------
     if report:
-
-        tonights.parameters['dir'] =os.getcwd()+'/'+tonights.parameters['trunk']
+        
+        tonights.parameters['trunk']=survey+'_'+tonights.parameters['start']
+            
+        tonights.parameters['dir']=os.getcwd()+'/'+tonights.parameters['trunk']
         
         if not os.path.exists(tonights.parameters['dir']):
             os.makedirs(tonights.parameters['dir'])

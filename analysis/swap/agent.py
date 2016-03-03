@@ -139,7 +139,7 @@ class Agent(object):
 
         return self.skill
 
-# ----------------------------------------------------------------------# Update confusion matrix with latest result:
+# ----------------------------------------------------------------------# Updates confusion matrix with latest result:
 #   eg.  collaboration.member[Name].heard(it_was='LENS',actually_it_was='NOT',with_probability=P,ignore=False)
 
     def heard(self,it_was=None,actually_it_was=None,with_probability=1.0,ignore=False,ID=None,record=True,at_time=None):
