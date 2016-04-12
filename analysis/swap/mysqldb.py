@@ -106,7 +106,8 @@ class MySQLdb(object):
         idx = np.where(subjects['SDSS_id']==long(ZooID))
         try: subject = subjects[idx][0]
         except: pdb.set_trace()
-        location = subject['urls12']
+
+        location = subject['external_ref']
 
         # No longer need to have the breakdown of Nair classification! 
         # These have been taken care of when building the metadata file

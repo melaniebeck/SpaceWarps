@@ -217,6 +217,7 @@ def main():
     metadata['GZ2_label'] = GZ2_label
     metadata['Nair_label'] = Nair_label
     metadata['Expert_label'] = Expert_label
+    meatdata['external_ref'] = assets['external_ref']
     #metadata['image_name'] = jpegs
     #metadata['urls12'] = assets['urls_dr12']
 
