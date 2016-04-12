@@ -37,6 +37,7 @@ def Nair_label_SMOOTH_NOT(Nair_subjects):
             #label = truth['UNKNOWN']
             label.append(truth['UNKNOWN'])
 
+    print "Nair labels complete."
     return np.array(label)
 
 
@@ -52,29 +53,30 @@ def GZ2_label_SMOOTH_NOT(GZ2_subjects):
     """
     label = []
 
-    #for GZ2_subject in GZ2_subjects:
     smooth = GZ2_subjects['t01_smooth_or_features_a01_smooth_debiased']
     disk = GZ2_subjects['t01_smooth_or_features_a02_features_or_disk_debiased']
     star = GZ2_subjects['t01_smooth_or_features_a03_star_or_artifact_debiased']
     
     #for GZ2_subject in GZ2_subjects:
     for sm,d,st in zip(smooth,disk,star):
-
+        
         majority = np.max([sm, d, st])
-
+        
         if sm == majority:
             #label = truth['SMOOTH']
             label.append(truth['SMOOTH'])
-
+            
         elif d == majority:
             #label = truth['NOT']
             label.append(truth['NOT'])
-
+            
         else: 
             #label = truth['UNKNOWN']
             label.append(truth['UNKNOWN'])
 
+    print "GZ2 labels complete."
     return np.array(label)
+
 
 def Expert_label_SMOOTH_NOT(expert_subjects):
     # When aggregating the results I labeled SMOOTH as 0 and NOT as 1;
@@ -83,23 +85,24 @@ def Expert_label_SMOOTH_NOT(expert_subjects):
     label = []
 
     for expert_subject in expert_subjects:
-        if 'sum_of_votes' in expert_subject.colnames:
-            if expert_subject['sum_of_votes'] >= 3:
-                #label = truth['NOT']
-                label.append(truth['NOT'])
-
-            elif expert_subject['sum_of_votes'] < 3:
-                #label = truth['SMOOTH']
-                label.append(truth['SMOOTH'])
-
-            else: 
-                #label = truth['UNKNOWN']
-                label.append(truth['UNKNOWN'])
-
+        #if 'sum_of_votes' in expert_subject.colnames:
+        if expert_subject['sum_of_votes'] >= 3:
+            #label = truth['NOT']
+            label.append(truth['NOT'])
+            
+        elif expert_subject['sum_of_votes'] < 3:
+            #label = truth['SMOOTH']
+            label.append(truth['SMOOTH'])
+            
         else: 
             #label = truth['UNKNOWN']
             label.append(truth['UNKNOWN'])
+            
+        #else: 
+        #    #label = truth['UNKNOWN']
+        #    label.append(truth['UNKNOWN'])
 
+    print "Expert labels complete."
     return np.array(label)
 
 def select_Nair_subjects(candidates):
@@ -153,12 +156,10 @@ def main():
 
     # This one has the "category" columns like gz2_..._better.fits with the 
     # regular columns of GZ2assets_Nair... but WITHOUT stripe82_coadd objects
-    assets = Table.read('GZ2assets_Nair_Morph_alternate.fits')
-    gzmain = Table.read('GZ2assets_Nair_Morph_zoo2Main.fits')
-    expert = Table.read('expert_sample.fits')
+    # RIGHT JOINED assets+gzmain (all the obj in assets; w or w/o match in gz)
+    assets = Table.read('GZ2ASSETS_NAIR_MORPH_MAIN.fits')
+    #expert = Table.read('expert_sample.fits')
 
-    print len(assets)
-    print len(gzmain)
     #test1 = join(expert,assets, keys='JID')
     #test2 = join(expert,gzmain,keys='JID')
 
@@ -169,58 +170,72 @@ def main():
     #pdb.set_trace()
     metadata = Table(names=('SDSS_id', 'JID', 'asset_id',
                             'stripe82','extra_original', 
-                            'ra', 'dec',
-                            'Rp', 'C', 'A', 'G', 'M20', 
+                            'ra', 'dec', 'Rp', 
+                            'C', 'A', 'G', 'M20', 'E',
                             'Rpflag', 'bflag', 
-                            'total_classifications','MLsample',
-                            'SWAP_prob', 'TType'),
-                     data= (gzmain['name'], gzmain['JID'], gzmain['asset_id'],
-                            gzmain['stripe82'], gzmain['extra_original'], 
-                            gzmain['ra'], gzmain['dec'], gzmain['Rp'], 
-                            gzmain['C'], gzmain['A'], gzmain['G'],gzmain['M20'],
-                            gzmain['Rpflag'], gzmain['bflag'], 
-                            gzmain['total_classifications'], gzmain['MLsample'],
-                            gzmain['label'], gzmain['TType']))
+                            'total_classifications', 'TType'),
+                     data= (assets['name'], assets['JID'], assets['id'],
+                            assets['stripe82'], assets['extra_original'], 
+                            assets['ra'], assets['dec'], assets['Rp'], 
+                            assets['C'], assets['A'], assets['G'],
+                            assets['M20'], assets['elipt'],
+                            assets['Rpflag'], assets['bflag'], 
+                            assets['total_classifications'], assets['TType']))
 
                     # still need to add: jpeg name, truth labels, urls12
                     #'int16','int16','int16','S1184')
     """
-    Length of metadata should match that of gzmain (for now).
+    Length of metadata should match that of ASSETS!! 
        - Some won't have measured morphology parameters
        - Some won't have Nair_labels (SMOOTH/NOT labels based on Nair TType)
        - Most won't have Expert_labels
        - 
     """
-    
-    GZ2_label = GZ2_label_SMOOTH_NOT(gzmain)
-    Nair_label = Nair_label_SMOOTH_NOT(gzmain)
-    Expert_label_short = Expert_label_SMOOTH_NOT(expert)
+    # Feed these functions the ASSETS table (not gzmain)
+    # If the necessary info for that subject doesn't exist, XXX_label = -1
+    GZ2_label = GZ2_label_SMOOTH_NOT(assets)
+    Nair_label = Nair_label_SMOOTH_NOT(assets)
+    Expert_label = Expert_label_SMOOTH_NOT(assets)
     print "Finished labelling"
     
     # find which indices Expert_label has in gzmain
-    result = find_indices(gzmain['JID'], expert['JID'])
+    #result = find_indices(assets['JID'], expert['JID'])
 
-    # Create array with length gzmain, all -1 (UNKNOWN)
-    Expert_label = np.full_like(gzmain['stripe82'], truth['UNKNOWN'])
-    Expert_label[result] = Expert_label_short
-    print "Extended 'Expert' label array"
+    # Create array with length assets, all -1 (UNKNOWN)
+    #Expert_label = np.full_like(assets['stripe82'], truth['UNKNOWN'])
+    #Expert_label[result] = Expert_label_short
+    #print "Extended 'Expert' label array"
 
     # Create array to hold jpeg names 
-    jpegs = np.full_like(gzmain['urls_dr12'], None)
-    jpegs[result] = expert['image_name']
-    print "Extended 'image_name' array"
+    #jpegs = np.full_like(assets['urls_dr12'], None)
+    #jpegs[result] = expert['image_name']
+    #print "Extended 'image_name' array"
 
     # add these columns to metadata
+    metadata['MLsample'] = 'valid'  # Change to test afterwards (initialize S5)
+    metadata['SWAP_prob'] = 0.3     # Current prior 
     metadata['GZ2_label'] = GZ2_label
     metadata['Nair_label'] = Nair_label
     metadata['Expert_label'] = Expert_label
-    metadata['image_name'] = jpegs
-    metadata['urls12'] = gzmain['urls_dr12']
+    #metadata['image_name'] = jpegs
+    #metadata['urls12'] = assets['urls_dr12']
+
     print "Added additional columns to metadata"
 
+    metadata['MLsample'] = 'test'
+    pdb.set_trace()
 
-    metadata.write('metadata_ground_truth_labels.fits')
+    try:
+        metadata.write('metadata_ground_truth_labels.fits')
+    except:
+        "Filename already exists. Overwrite?"
+        pdb.set_trace()
     
+    # Make a metadata pickle for GZ:Express
+    import cPickle
+    F = open('GZ2_testML2_metadata.pickle','wb')
+    cPickle.dump(metadata,F,protocol=2)
+    F.close()
     pdb.set_trace()
 
 

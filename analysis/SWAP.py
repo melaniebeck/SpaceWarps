@@ -535,8 +535,7 @@ def SWAP(argv):
         # Turn cookie on and update the config "start" 
         else: 
             swap.set_cookie(True)
-            if not machine:
-                tonights.parameters['start'] = t2.strftime('%Y-%m-%d_%H:%M:%S')
+            tonights.parameters['start'] = t2.strftime('%Y-%m-%d_%H:%M:%S')
                 
     else:
         swap.set_cookie(False)

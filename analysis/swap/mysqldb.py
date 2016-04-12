@@ -104,8 +104,8 @@ class MySQLdb(object):
         else: result = 'NOT'
 
         idx = np.where(subjects['SDSS_id']==long(ZooID))
-        subject = subjects[idx][0]
-
+        try: subject = subjects[idx][0]
+        except: pdb.set_trace()
         location = subject['urls12']
 
         # No longer need to have the breakdown of Nair classification! 
