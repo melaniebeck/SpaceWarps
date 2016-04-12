@@ -110,8 +110,3 @@ def compute_binary_metrics(fps, tps):
     ACC = ( TPR + FPR ) / ( TPR + FPR + TNR + FNR )
 
     return [ACC, TPR, FPR, FNR, TNR, PPV, FDR, FOR, NPV]
-    
-    
-
-    
-    

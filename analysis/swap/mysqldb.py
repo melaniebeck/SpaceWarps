@@ -103,39 +103,41 @@ class MySQLdb(object):
         if classification['answer_id'] == 1: result = 'SMOOTH'
         else: result = 'NOT'
 
-        idx = np.where(subjects['name']==long(ZooID))
+        idx = np.where(subjects['SDSS_id']==long(ZooID))
         subject = subjects[idx][0]
 
-        location = subject['external_ref']
+        location = subject['urls12']
 
-        if subject['JID']: 
+        # No longer need to have the breakdown of Nair classification! 
+        # These have been taken care of when building the metadata file
+        # Use the Expert_Label if available; otherwise use Nair_label?
+        if subject['Expert_label']!=-1:
             category = 'training'
-            if subject['TType'] <= -2 and subject['dist'] <= 2: 
-                flavor = 'lensing cluster'  # so that I don't have to
-                kind = 'sim'                # change stuff elsewhere...
-                truth = 'SMOOTH'
-            elif subject['TType'] >= 1 and subject['flag'] != 2: 
-                kind = 'dud' 
-                flavor = 'dud'
-                truth = 'NOT'
-            else:
-                kind = 'test'
-                flavor = 'test'
-                truth = 'UNKNOWN'
-        else: 
+            if subject['Expert_label']==0:
+                flavor='lensing cluster'
+                kind='sim'
+                truth='SMOOTH'
+            elif subject['Expert_label']==1:
+                flavor='dud'
+                kind='dud'
+                truth='NOT'
+
+        elif subject['Nair_label']!=-1:
+            category = 'training'
+            if subject['Nair_label']==0:
+                flavor='lensing cluster'
+                kind='sim'
+                truth='SMOOTH'
+            elif subject['Nair_label']==1:
+                flavor='dud'
+                kind='dud'
+                truth='NOT'
+        else:                 
             category = 'test'
             kind = 'test'
             flavor = 'test'
             truth = 'UNKNOWN'
 
-        """
-        # If we separate SWAP and MACHINE pickles, this isn't needed!
-        morphdata = {}
-        # deal with morphology data
-        if not np.isnan(subject['M20']):
-            morphdata = {'M20':subject['M20'], 'C':subject['C'], 
-                    'G':subject['G'], 'A':subject['A'], 'E':subject['elipt']}
-        """
 
         items = t, str(Name), str(ID), str(ZooID), category, kind, flavor,\
                 result, truth, location

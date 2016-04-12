@@ -237,34 +237,27 @@ def SWAP(argv):
     except: machine = False
     print "SWAP: running MachineClassifier.py after this run?",machine
 
+    #pdb.set_trace()
+
     # ------------------------------------------------------------------
     # Read in, or create, a bureau of agents who will represent the
     # volunteers:
-
     bureau = swap.read_pickle(tonights.parameters['bureaufile'],'bureau')
 
     # ------------------------------------------------------------------
     # Read in, or create, an object representing the candidate list:
-
     sample = swap.read_pickle(tonights.parameters['samplefile'],'collection')
 
     # ------------------------------------------------------------------
-    # Read in an old pickle or open the base fits file representing the 
-    # entire metadata for all subjects in the database
-    
-    metafile = tonights.parameters['metadatafile']
-    subjects = swap.read_pickle(metafile, 'metadata')
-    print "SWAP: read the metadata file from %s"%metafile
-    #subjects = Table.read('GZ2assets_Nair_Morph.fits') 
+    # Read in metadata (all subjects for which we have morph params)
+    subjects = swap.read_pickle(tonights.parameters['metadatafile'], 'metadata')
 
     # ------------------------------------------------------------------
     # Open up database:
-
     db = swap.MySQLdb()
 
     # Read in a batch of classifications, made since the aforementioned
     # start time:
-
     batch = db.find('between',t1,t2)  
     print "SWAP: found %i classifications for this batch"%len(batch)
 
@@ -305,9 +298,8 @@ def SWAP(argv):
                                                  flavor,Y,thresholds,location,
                                                  prior=prior)
 
-        # Update the subject's lens probability using input from the
-        # classifier. We send that classifier's agent to the subject
-        # to do this.
+        # Update the subject's probability using input from the classifier. 
+        # We send that classifier's agent to the subject to do this.
         sample.member[ID].was_described(by=bureau.member[Name],as_being=X,
                                         at_time=tstring, while_ignoring=
                                         a_few_at_the_start, haste=waste)
@@ -317,12 +309,12 @@ def SWAP(argv):
         #-------------------------------------------------------------------
         #                  UPDATE THE METADATA FILE FOR ML
         #-------------------------------------------------------------------
-        # if the subject has crossed either rejection/detection threshold
-        # flip that subject from Test to Train sample in the ML Collection
+        # If the subject has crossed either rejection/detection threshold
+        # flip that subject's MLsample value from Test to Train in metadata
         if (sample.member[ID].status != 'undecided') or \
            (sample.member[ID].state == 'inactive'):
             subjects['MLsample'][int(ID)-1] = 'train'
-            subjects['label'][int(ID)-1] = P
+            subjects['SWAP_prob'][int(ID)-1] = P
             print "====================================================="
             print "=======  TRAINING SAMPLE HAS A NEW MEMBER!!!  ======="
             print "ID: ",ID," LABEL:",P
@@ -331,7 +323,6 @@ def SWAP(argv):
         #                 UPDATE AGENT'S CONFUSION MATRIX
         #-------------------------------------------------------------------
         if supervised_and_unsupervised:
-            print "supervised_and_unsupervised? Bad SWAP."
             # use both training and test images
             if agents_willing_to_learn * ((category == 'test') + \
                                           (category == 'training')):
@@ -349,12 +340,10 @@ def SWAP(argv):
                                           with_probability=P,ignore=False,
                                           ID=ID,at_time=tstring)
             elif category == 'training':
-                print "Um... no, SWAP. Just no."
                 bureau.member[Name].heard(it_was=X,actually_it_was=Y,
                                           with_probability=P,ignore=True,
                                           ID=ID,at_time=tstring)
         else:
-            print "What the hell am I doing in here?!"
             # Unsupervised: ignore all the training images...
             if category == 'test' and agents_willing_to_learn:
                 bureau.member[Name].heard(it_was=X,actually_it_was=Y,
@@ -535,18 +524,15 @@ def SWAP(argv):
 
     # ------------------------------------------------------------------
     # If there is more to do we need to update the config file for the next day
-    # UNLESS we're running the Machine! (Machine will take care of updating day)
 
     if more_to_do:
-
-        # if t2 == stop date, we're done! 
         # Turn off cookie and start the big plots
         if t2 == tstop: 
             swap.set_cookie(False)
             plots = True
 
         # otherwise, increment by the timestep 
-        # Turn cookie on and update the config "start" (IF NOT MACHINE)
+        # Turn cookie on and update the config "start" 
         else: 
             swap.set_cookie(True)
             if not machine:

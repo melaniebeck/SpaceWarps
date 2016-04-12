@@ -55,19 +55,19 @@ class Agent_ML(object):
 
 # ----------------------------------------------------------------------
 
-    def __init__(self,name,pars):
+    def __init__(self,name,metric,criterion):
         self.name = name
         self.model = None  # Can I actually store the trained machine??? :D
-        self.eval_metric = pars['metric']
-        self.eval_criterion = pars['criterion']
+        self.eval_metric = metric
+        self.eval_criterion = criterion
 
         self.evaluationhistory = {'N':np.array([]),
-                                'ACC':np.array([]),
-                                'TPR':np.array([]),
-                                'TNR':np.array([]),
-                                'SCONT':np.array([]),
-                                'FCONT':np.array([]),
-                                'At_Time': np.array([])}
+                                  'ACC':np.array([]),
+                                  'TPR':np.array([]),
+                                  'TNR':np.array([]),
+                                  'SCONT':np.array([]),
+                                  'FCONT':np.array([]),
+                                  'At_Time': np.array([])}
         return None
 
     def record(self, training_sample_size=None, with_accuracy=None, 
@@ -92,15 +92,36 @@ class Agent_ML(object):
                                       feature_contamination)
         self.evaluationhistory['At_Time'] = \
                         np.append(self.evaluationhistory['At_Time'], at_time)
+        self.evaluationhistory['Trained'] = np.append(self.evaluate())
 
         return
 
 
-    def evaluate(self, ):
+    def evaluate(self):
         # Can we use this to evaluate the metric? 
         # which metric is it? Metric is a string? 
-        self.eval_metric == 
-        if self.eval_criterion
+        # For now let's make this simple -- Let's say we require that 
+        # feature contamination be below 20%
+        # To test for this, I need to know which metric(s), and criteria
+        # For now, the only metrics you can choose are ACC, TPR, TNR, CONT_S, 
+        # or CONT_F
 
+        # This evaluation based on the fact that no one would want to 
+        # minimize the true positive rate or maximize the contamination...
+        if self.eval_metric in ['TPR', 'TNR', 'ACC']:
+            if self.evaluationhistory[self.eval_metric] > self.eval_criterion:
+                return True
+            else: return False
 
-    def plot_metrics(self,):
+        elif self.eval_metric in ['CONT_S', 'CONT_F']:
+            if self.evaluationhistory[self.eval_metric] < self.eval_criterion:
+                return True
+            else: return False
+
+        else:
+            print "Not a valid metric."
+            return False
+
+    def plot_metrics(self):
+        
+        

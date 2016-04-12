@@ -1,6 +1,6 @@
 # ===========================================================================
 
-import os, glob, pdb
+import os, glob, pdb, ast
 
 # ======================================================================
 # Global parameters:
@@ -97,18 +97,11 @@ class Configuration(object):
 
         # Some values need to be floats or integers:
         for key in self.parameters.keys():
-            try:
-                self.parameters[key] = float(self.parameters[key])
-            except ValueError:
+            
+            try: 
+                self.parameters[key] = ast.literal_eval(self.parameters[key])
+            except:
                 pass
-                            
-            # Certain strings are special:
-            if self.parameters[key] == 'False': 
-                self.parameters[key] = False
-            elif self.parameters[key] == 'True': 
-                self.parameters[key] = True
-            elif self.parameters[key] == 'None': 
-                self.parameters[key] = None
 
         return
 
