@@ -313,11 +313,14 @@ def SWAP(argv):
         # flip that subject's MLsample value from Test to Train in metadata
         if (sample.member[ID].status != 'undecided') or \
            (sample.member[ID].state == 'inactive'):
-            subjects['MLsample'][int(ID)-1] = 'train'
-            subjects['SWAP_prob'][int(ID)-1] = P
-            print "====================================================="
-            print "=======  TRAINING SAMPLE HAS A NEW MEMBER!!!  ======="
-            print "ID: ",ID," LABEL:",P
+            new_subject = subjects[int(ID)-1]
+            new_subjects['SWAP_prob'] = P
+
+            if new_subject['MLsample'] == 'test':
+                subjects['MLsample'][int(ID)-1] = 'train'
+                print "====================================================="
+                print "=======  TRAINING SAMPLE HAS A NEW MEMBER!!!  ======="
+                print "ID: ",ID," LABEL:",P
 
         #-------------------------------------------------------------------
         #                 UPDATE AGENT'S CONFUSION MATRIX

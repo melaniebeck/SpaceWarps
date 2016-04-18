@@ -70,12 +70,20 @@ class Agent_ML(object):
                                   'At_Time': np.array([])}
         return None
 
-    def record(self, training_sample_size=None, with_accuracy=None, 
-               smooth_completeness=None, feature_completeness=None, 
-               smooth_contamination=None, feature_contamination=None,
-               at_time=None):
 
-        # Always log on what are we trained, even if not learning:
+    def record_params(self, params):
+        # Need to record the outcome of the cross-validation (which params 
+        # were used each time) but this is dependent on the algorithm
+        self.traininghistory = 5
+
+        return
+
+    def record_outcome(self, training_sample_size=None, with_accuracy=None, 
+                       smooth_completeness=None, feature_completeness=None, 
+                       smooth_contamination=None, feature_contamination=None,
+                       at_time=None):
+
+        # Log characteristics of tonight's training
         self.evaluationhistory['N']=np.append(self.evaluationhistory['N'], 
                                               training_sample_size)
         self.evaluationhistory['ACC']=np.append(self.evaluationhistory['ACC'],
@@ -122,6 +130,6 @@ class Agent_ML(object):
             print "Not a valid metric."
             return False
 
-    def plot_metrics(self):
+    #def plot_metrics(self):
         
         

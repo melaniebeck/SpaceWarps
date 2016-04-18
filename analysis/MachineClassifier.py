@@ -6,6 +6,8 @@ from sklearn.neighbors import KNeighborsClassifier as KNC
 
 import swap
 import machine_utils as ml
+import metrics as mtrx
+
 from optparse import OptionParser
 from astropy.table import Table
 import pdb
@@ -13,6 +15,7 @@ import datetime
 import numpy as np
 import os, subprocess
 import cPickle
+
 
 '''
 Workflow:
@@ -31,18 +34,20 @@ def MachineClassifier(options, args):
     except: pdb.set_trace()
 
     tonights = swap.Configuration(config)
-    pdb.set_trace()
+
+    #"""
     # Read the pickled random state file
     random_file = open(tonights.parameters['random_file'],"r");
     random_state = cPickle.load(random_file);
     random_file.close();
     np.random.set_state(random_state);
+    #"""
 
     # Get the machine threshold (make retirement decisions)
     threshold = tonights.parameters['machine_threshold']
 
     # Get list of evaluation metrics and criteria   
-    metrics = tonights.parameters['evaluation_metrics']
+    eval_metrics = tonights.parameters['evaluation_metrics']
     criteria = tonights.parameters['evaluation_criteria']
 
     survey = tonights.parameters['survey']
@@ -79,47 +84,83 @@ def MachineClassifier(options, args):
     # IDENTIFY VALIDATION SAMPLE (FINAL) 
     valid_sample = subjects[subjects['MLsample']=='valid']
     valid_meta, valid_features = ml.extract_training(valid_sample)
-    valid_labels = valid_meta['Expert_label']
+    valid_labels = valid_meta['Expert_label'].filled()
 
-
+    #if len(train_sample) >= 100: 
     # TO DO: LOOP THROUGH DIFFERENT MACHINES? HOW MANY MACHINES?
-    for crit, metric in zip(criteria, metrics):
+    for crit in criteria:
+        metric = 'ACC'
         
         # REGISTER Machine Classifier
         # Construct machine name --> Machine+Metric? For now: KNC
         machine = 'KNC'
-        Name = machine+'_'+metric+'_'+crit
-
+        Name = machine+'_'+metric+'_'+str(crit)
+        
         # register an Agent for this Machine
-        try: test = MLbureau.member[Name]
-        except: MLbureau.member[Name] = swap.Agent_ML(Name, metric, criterion)
-
+        try: 
+            test = MLbureau.member[Name]
+        except: 
+            MLbureau.member[Name] = swap.Agent_ML(Name, metric, crit)
+            
         # Now we run the machine -- need cross validation on whatever size 
         # training sample we have .. 
-        parameters = {'n_neighbors':np.arange(5,55,5), 
+        #parameters = {'n_neighbors':np.arange(5,55,5), 
+        #              'weights':('uniform','distance')}
+        params = {'n_neighbors':np.arange(1, 2*(len(train_sample)-1) / 3, 2), 
                       'weights':('uniform','distance')}
+        
+        #pipe = Pipeline(steps=['knc',KNC()])
+        
+        gs_ACC = GridSearchCV(estimator=KNC(), param_grid=params,
+                              error_score=0, scoring='accuracy')
+        gs_REC = GridSearchCV(estimator=KNC(), param_grid=params,
+                              error_score=0, scoring='recall')
+        gs_PRE = GridSearchCV(estimator=KNC(), param_grid=params,
+                              error_score=0, scoring='precision')
+        
 
-        params = dict(KNC__n_neighors=np.arange(5,55,5))
+        fit_ACC = gs_ACC.fit(train_features, train_labels)
+        fit_REC = gs_REC.fit(train_features, train_labels)
+        fit_PRE = gs_PRE.fit(train_features, train_labels)
 
+        print "Scores from Fitting:"
+        print "========================="
+        print "ACC:", gs_ACC.best_score_
+        print "REC:", gs_REC.best_score_
+        print "PRE:", gs_PRE.best_score_
+        print ""
+        print "Scores from predicting validation:"
+        print "==================================="
+        print "ACC:", fit_ACC.score(valid_features, valid_labels)
+        print "REC:", fit_REC.score(valid_features, valid_labels)
+        print "PRE:", fit_PRE.score(valid_features, valid_labels)
+        
+        prob_ACC = fit_ACC.predict_proba(valid_features)
+        prob_REC = fit_REC.predict_proba(valid_features)
+        prob_PRE = fit_PRE.predict_proba(valid_features)
 
-        pipe = Pipeline(steps=['knc',KNC()])
+        pred_ACC = fit_ACC.predict(valid_features)
+        pred_REC = fit_REC.predict(valid_features)
+        pred_PRE = fit_PRE.predict(valid_features)
 
-        grid_search = GridSearchCV(pipe, param_dict=params)
+        fps, tps, thresh = mtrx._binary_clf_curve(valid_labels, prob_ACC[:,1])
+
+        # Should this be a function in the agent_ML.py object? 
+        metric_list = mtrx.compute_binary_metrics(fps, tps)
+        ACC, TPR, FPR, FNR, TNR, PPV, FDR, FOR, NPV = metric_list
+        
+
+        # GOOD! Everything seems to be agreeing now. Yay.
+        # RECORD ALL the DATAS
 
         pdb.set_trace()
 
-    # for our training sample, run a bunch of models and use cross-validation
-    # to determine best parameters
-
-    if len(train_sample) > 10:
 
         
         # loop through different machines? 
         # Machine Name based on Metric Evaluation + Machine Algorithm? 
         # MAKE EVALUATION METRIC/CRITERION ARRAYS???? 
         # THEN WE CAN LOOP THROUGH THEM? 
-
-        pdb.set_trace()
 
         ##### ADD EVALUATION METRIC AND EVAL CRITERION TO TONIGHTS.PARAMS ####
 

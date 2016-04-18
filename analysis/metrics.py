@@ -106,7 +106,6 @@ def compute_binary_metrics(fps, tps):
     FOR = fns / (fns + tns)   # "Contamination" of the other condition
     NPV = tns / (fns + tns)   # Negative Predictive Value 
     
-    #ACC = ( 1 + (1/PPV - 1)*(1/FPR - 1) ) / ( (1/TPR) + (1/PPV - 1) / FPR )
-    ACC = ( TPR + FPR ) / ( TPR + FPR + TNR + FNR )
+    ACC = ( tps + tns ) / ( tps + fps + tns + fns )
 
     return [ACC, TPR, FPR, FNR, TNR, PPV, FDR, FOR, NPV]

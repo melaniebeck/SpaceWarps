@@ -276,6 +276,7 @@ def write_config(filename, pars):
                  'samplefile', 
                  'metadatafile',
                  'MLsamplefile',
+                 'MLbureaufile',
                  'stage', 
                  'verbose', 
                  'one_by_one', 
