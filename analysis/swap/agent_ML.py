@@ -16,17 +16,14 @@ class Agent_ML(object):
         Agent
 
     PURPOSE
-        A little robot who will interpret the classifications of an
-        individual volunteer.
+        A little robot who will interpret the training  of an
+        individual Machine.
 
     COMMENTS
         An Agent is assigned to represent a MACHINE, whose Name is
-        the Algorithm (KNC, RF, etc). Agents each have a History which 
+        the Algorithm (KNC, RF, etc) + the Evaluation Metric of user's choice.
+        Agents each have a History which 
         records the size of the training sample, N. 
-        classified, and is equal to N in the simple "SMOOTH or NOT"
-        analysis. Each Agent carries a "confusion matrix"
-        parameterised by two numbers, PD and PL, the meaning of which is
-        as follows:
 
         History also records various metrics for Machine evaluation: 
         -- list of metrics? should these be 
@@ -55,55 +52,91 @@ class Agent_ML(object):
 
 # ----------------------------------------------------------------------
 
-    def __init__(self,name,metric,criterion):
+    def __init__(self, name, metric):
         self.name = name
         self.model = None  # Can I actually store the trained machine??? :D
-        self.eval_metric = metric
-        self.eval_criterion = criterion
 
-        self.evaluationhistory = {'N':np.array([]),
-                                  'ACC':np.array([]),
-                                  'TPR':np.array([]),
-                                  'TNR':np.array([]),
-                                  'SCONT':np.array([]),
-                                  'FCONT':np.array([]),
-                                  'At_Time': np.array([])}
+        if metric in ['accuracy', 'precision', 'recall']:
+            self.eval_metric = metric
+        else: 
+            print "%s is not a valid scoring metric."%metric
+            exit
+
+        # This might eventually be removed but for now I think it'll be useful
+        # This will store the 'metric' calculated on the Expert Sample as a
+        # function of the 'threshold', which in our case is the probability
+        # of being "smooth" (having the characteristic of choice)
+        
+        # KEY: Astronomer's Term == Statistician's Term
+        # Completeness(S) == Recall (True Positive Rate)
+        # Contamination(S) == 1 - Precision (False Discovery Rate)
+        # Completeness(F) == Specificity (True Negative Rate)
+        # Contamination(F) == False Omission Rate 
+        self.evaluationhistory = {'Accuracy':np.array([]),
+                                  'Completeness(S)':np.array([]),
+                                  'Contamination(S)':np.array([]),
+                                  'Completeness(F)':np.array([]),
+                                  'Contamination(F)':np.array([])}
+
+        # This is SUPER necessary -- 
+        # Track the evolution of the model and the best parameters found
+        # during a Grid Search over the parameter space with CV
+        self.traininghistory = {'Model':np.array([]), 
+                                'Parameters':np.array([]), 
+                                'TrainingSize':np.array([]), 
+                                'At_Time':np.array([]),
+                                'TrainACC':np.array([]),
+                                'ValidACC':np.array([])}
+
+        # Based on some combination of the above we can eventually determine
+        # appropriate "scores" to evaluate the efficacy of our trained machine
+
         return None
 
 
-    def record_params(self, params):
+    def record_training(self, model_described_by=None, with_params=None, 
+                        trained_on=None, at_time=None, with_train_acc=None,
+                        and_valid_acc=None):
         # Need to record the outcome of the cross-validation (which params 
         # were used each time) but this is dependent on the algorithm
-        self.traininghistory = 5
+        self.traininghistory['Model'] = \
+                    np.append(self.traininghistory['Model'], model_described_by)
+        self.traininghistory['Parameters'] = \
+                    np.append(self.traininghistory['Parameters'], with_params)
+        self.traininghistory['TrainingSize'] = \
+                    np.append(self.traininghistory['TrainingSize'], trained_on)
+        self.traininghistory['At_Time'] = \
+                    np.append(self.traininghistory['At_Time'], at_time)
+        self.traininghistory['TrainACC'] = \
+                    np.append(self.traininghistory['TrainACC'], with_train_acc)
+        self.traininghistory['ValidACC'] = \
+                    np.append(self.traininghistory['ValidACC'], with_valid_acc)
 
         return
 
-    def record_outcome(self, training_sample_size=None, with_accuracy=None, 
-                       smooth_completeness=None, feature_completeness=None, 
-                       smooth_contamination=None, feature_contamination=None,
-                       at_time=None):
+    def record_evaluation(self, accuracy=None, completeness_s=None, 
+                          contamination_s=None, completeness_f=None, 
+                          contamination_f=None):
 
-        # Log characteristics of tonight's training
-        self.evaluationhistory['N']=np.append(self.evaluationhistory['N'], 
-                                              training_sample_size)
-        self.evaluationhistory['ACC']=np.append(self.evaluationhistory['ACC'],
-                                                with_accuracy)
-        self.evaluationhistory['TPR']=np.append(self.evaluationhistory['TPR'],
-                                                smooth_completeness)
-        self.evaluationhistory['TNR']=np.append(self.evaluationhistory['TNR'], 
-                                                feature_completeness)
-        self.evaluationhistory['CONT_S'] = \
-                            np.append(self.evaluationhistory['CONT_S'], 
-                                      smooth_contamination)
-        self.evaluationhistory['CONT_F'] = \
-                            np.append(self.evaluationhistory['CONT_F'], 
-                                      feature_contamination)
-        self.evaluationhistory['At_Time'] = \
-                        np.append(self.evaluationhistory['At_Time'], at_time)
-        self.evaluationhistory['Trained'] = np.append(self.evaluate())
+        self.evaluationhistory['Accuracy'] = \
+                    np.append(self.evaluationhistory['Accuracy'], accuracy)
 
+        self.evaluationhistory['Completeness(S)'] = \
+                    np.append(self.evaluationhistory['Completeness(S)'], 
+                              completeness_s)
+
+        self.evaluationhistory['Contamination(S)'] = \
+                    np.append(self.evaluationhistory['Contamination(S)'], 
+                              contamination_s)
+
+        self.evaluationhistory['Completeness(F)'] = \
+                    np.append(self.evaluationhistory['Completeness(F)'], 
+                              completeness_f)
+
+        self.evaluationhistory['Contamination(F)'] = \
+                    np.append(self.evaluationhistory['Contamination(F)'], 
+                              contamination_f)
         return
-
 
     def evaluate(self):
         # Can we use this to evaluate the metric? 

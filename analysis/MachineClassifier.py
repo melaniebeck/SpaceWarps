@@ -48,7 +48,6 @@ def MachineClassifier(options, args):
 
     # Get list of evaluation metrics and criteria   
     eval_metrics = tonights.parameters['evaluation_metrics']
-    criteria = tonights.parameters['evaluation_criteria']
 
     survey = tonights.parameters['survey']
     subdir = 'sup_run4'
@@ -88,106 +87,72 @@ def MachineClassifier(options, args):
 
     #if len(train_sample) >= 100: 
     # TO DO: LOOP THROUGH DIFFERENT MACHINES? HOW MANY MACHINES?
-    for crit in criteria:
-        metric = 'ACC'
+    for metric in eval_metrics:
         
         # REGISTER Machine Classifier
         # Construct machine name --> Machine+Metric? For now: KNC
         machine = 'KNC'
-        Name = machine+'_'+metric+'_'+str(crit)
+        Name = machine+'_'+metric
         
         # register an Agent for this Machine
         try: 
             test = MLbureau.member[Name]
         except: 
-            MLbureau.member[Name] = swap.Agent_ML(Name, metric, crit)
+            MLbureau.member[Name] = swap.Agent_ML(Name, metric)
             
+
+        #---------------------------------------------------------------    
+        #     TRAIN THE MACHINE; EVALUATE ON VALIDATION SAMPLE
+        #---------------------------------------------------------------        
+
         # Now we run the machine -- need cross validation on whatever size 
         # training sample we have .. 
-        #parameters = {'n_neighbors':np.arange(5,55,5), 
-        #              'weights':('uniform','distance')}
+        
+        # For now this will be fixed until we build in other machine options
         params = {'n_neighbors':np.arange(1, 2*(len(train_sample)-1) / 3, 2), 
-                      'weights':('uniform','distance')}
+                  'weights':('uniform','distance')}
         
-        #pipe = Pipeline(steps=['knc',KNC()])
+        # Create the model 
+        general_model = GridSearchCV(estimator=KNC(), param_grid=params,
+                                     error_score=0, scoring=metric)        
+
+        # Train the model -- k-fold cross validation is embedded
+        trained_model = general_model.fit(train_features, train_labels)
+
+        # Test "accuracy" (metric of choice) on validation sample
+        score = trained_model.score(valid_features, valid_labels)
+
+        MLbureau.member[Name].record_training(\
+                            model_described_by=trained_model.best_estimator_, 
+                            with_params=trained_model.best_params_, 
+                            trained_on=len(train_features), 
+                            at_time=TIME, 
+                            with_train_acc=traineed_model.best_score_,
+                            and_valid_acc=trained_model.score(valid_features,
+                                                              valid_labels))
+
+        # Store the trained machine
+        MLbureau.member[Name].model = trained_model
+
         
-        gs_ACC = GridSearchCV(estimator=KNC(), param_grid=params,
-                              error_score=0, scoring='accuracy')
-        gs_REC = GridSearchCV(estimator=KNC(), param_grid=params,
-                              error_score=0, scoring='recall')
-        gs_PRE = GridSearchCV(estimator=KNC(), param_grid=params,
-                              error_score=0, scoring='precision')
-        
+        # Compute / store confusion matrix as a function of threshold
+        # produced by this machine on the Expert Validation sample
 
-        fit_ACC = gs_ACC.fit(train_features, train_labels)
-        fit_REC = gs_REC.fit(train_features, train_labels)
-        fit_PRE = gs_PRE.fit(train_features, train_labels)
-
-        print "Scores from Fitting:"
-        print "========================="
-        print "ACC:", gs_ACC.best_score_
-        print "REC:", gs_REC.best_score_
-        print "PRE:", gs_PRE.best_score_
-        print ""
-        print "Scores from predicting validation:"
-        print "==================================="
-        print "ACC:", fit_ACC.score(valid_features, valid_labels)
-        print "REC:", fit_REC.score(valid_features, valid_labels)
-        print "PRE:", fit_PRE.score(valid_features, valid_labels)
-        
-        prob_ACC = fit_ACC.predict_proba(valid_features)
-        prob_REC = fit_REC.predict_proba(valid_features)
-        prob_PRE = fit_PRE.predict_proba(valid_features)
-
-        pred_ACC = fit_ACC.predict(valid_features)
-        pred_REC = fit_REC.predict(valid_features)
-        pred_PRE = fit_PRE.predict(valid_features)
-
-        fps, tps, thresh = mtrx._binary_clf_curve(valid_labels, prob_ACC[:,1])
-
-        # Should this be a function in the agent_ML.py object? 
+        fps, tps, thresh = mtrx._binary_clf_curve(valid_labels,
+                            trained_model.predict_proba(valid_features)[:,1])
         metric_list = mtrx.compute_binary_metrics(fps, tps)
         ACC, TPR, FPR, FNR, TNR, PPV, FDR, FOR, NPV = metric_list
         
-
-        # GOOD! Everything seems to be agreeing now. Yay.
-        # RECORD ALL the DATAS
+        MLbureau.member[Name].record_evaluation(accuracy=ACC, 
+                                                completeness_s=TPR,
+                                                contamination_s=FDR,
+                                                completeness_f=TNR,
+                                                contamination_f=NPV)
 
         pdb.set_trace()
 
 
-        
-        # loop through different machines? 
-        # Machine Name based on Metric Evaluation + Machine Algorithm? 
-        # MAKE EVALUATION METRIC/CRITERION ARRAYS???? 
-        # THEN WE CAN LOOP THROUGH THEM? 
 
-        ##### ADD EVALUATION METRIC AND EVAL CRITERION TO TONIGHTS.PARAMS ####
-
-        #---------------------------------------------------------------    
-        #     TRAIN THE MACHINE; GET PREDICTIONS ON VALIDATION SAMPLE
-        #---------------------------------------------------------------        
-        predictions, probas, model = ml.runKNC(train_features, train_labels, 
-                                               valid_features)
-        MLbureau.member[Name].model = model
-
-        # DETERMINE IF MACHINE TRAINS AT/ABOVE ==>CONDITION<== ??
-        # 1. use predictions/probas to compute various metrics
-        fps, tps, thresh = metrics._binary_clf_curve(truth, probas[:,1])
-
-        # Should this be a function in the agent_ML.py object? 
-        metrics = metrics.compute_binary_metrics(fps, tps)
-        ACC, TPR, FPR, FNR, TNR, PPV, FDR, FOR, NPV = metrics
-
-        # 2. record those metrics for each night (and each machine)
-        #### GET DATE FROM TONIGHTS.PARAMETERS? #####
-        MLbureau.member[Name].record(training_sample_size=len(train), 
-                                     with_accuracy=ACC,
-                                     smooth_completeness=TPR,
-                                     feature_completeness=TNR, 
-                                     smooth_contamination=PPV, 
-                                     feature_contamination=FOR, 
-                                     at_time=None)
         
         # 3. compare the metric of choice with the evaluation criterion to
         # see if this machine has sufficiently learned? 

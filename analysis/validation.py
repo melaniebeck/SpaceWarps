@@ -1,4 +1,4 @@
-import machine as ml
+import machine_utils as ml
 import swap
 import numpy as np
 from numpy import random as rand
@@ -12,7 +12,7 @@ from sklearn.grid_search import GridSearchCV
 from sklearn.neighbors import KNeighborsClassifier, RadiusNeighborsClassifier
 import sklearn.metrics as mx
 from optparse import OptionParser
-from figure import set_big
+from figure_styles import set_big
 
 def find_nearest(a, val):
     idx = (np.abs(a-val)).argmin()
@@ -24,75 +24,6 @@ def read_pickle(filename):
     F.close()
     return contents
 
-def Nair_or_Not(subject):
-    """
-    subject must be an entry from the metadata file 
-    should have stucture like a dictionary
-    """
-    if subject['JID'][0]=='J': 
-        if subject['TType'] <= -2 and subject['dist'] <= 2: 
-            category = 'training'
-            flavor = 'lensing cluster'  # so that I don't have to
-            kind = 'sim'                # change stuff elsewhere...
-            truth = 'SMOOTH'
-        elif subject['TType'] >= 1 and subject['flag'] != 2:
-            category = 'training' 
-            kind = 'dud' 
-            flavor = 'dud'
-            truth = 'NOT'
-        else:
-            category = 'test'
-            kind = 'test'
-            flavor = 'test'
-            truth = 'UNKNOWN'
-    else: 
-        category = 'test'
-        kind = 'test'
-        flavor = 'test'
-        truth = 'UNKNOWN'
-
-    descriptors = category, kind, flavor, truth
-    return descriptors[:]
-
-def select_Nair(subjects, filename):
-    # select the Nair galaxies as a validation sample
-    # -------------------------------------------------------------------
-    for idx, s in enumerate(subjects):
-        category, kind, flavor, truth = Nair_or_Not(s)
-        if truth == 'SMOOTH':
-            subjects['Nair_label'][idx] = 1
-        if category == 'training':
-            subjects['MLsample'][idx] = 'valid'
-            
-    swap.write_pickle(subjects,filename)
-
-
-def get_truth(gzfile, sample):
-    not_found = []
-    truth = np.array([])
-
-    keys = ['t01_smooth_or_features_a01_smooth_debiased',
-            't01_smooth_or_features_a02_features_or_disk_debiased',
-            't01_smooth_or_features_a03_star_or_artifact_debiased']
-    debiased_votes = np.array([gzfile[k] for k in keys], dtype='float32').T
-    
-    for idx, s in enumerate(sample):
-        gzidx = np.where(s['name'] == gzfile['name'])[0]
-        #print "GZ IDX:",gzidx, 'NAME:',s['name']
-        if len(gzidx) > 0:
-            gzidx = gzidx[0]
-            #print info[idx]
-            if debiased_votes[gzidx][0] == np.max(debiased_votes[gzidx]):
-                truth = np.append(truth,1)
-            else: 
-                truth = np.append(truth,0)
-        else:
-            #print 'IDX:', idx
-            not_found.append(idx)
-            
-    return truth, not_found
-
-
 def get_answers(gzfile, sample):
     answers = np.array([])
     for s in sample:
@@ -103,9 +34,8 @@ def get_answers(gzfile, sample):
             answers = np.append(answers,0)
     return answers
 
-
 def plot_singlemetric_samplesize(metrics, method, thresh=None, 
-                                 keys=None, labels=None):
+                                 keys=None, labels=None, name_modifier=None):
 
     set_big()
 
@@ -126,13 +56,13 @@ def plot_singlemetric_samplesize(metrics, method, thresh=None,
             
         ax = fig.add_subplot(2,5,1+j)
             
-        vals = np.where(metrics['acc_thresh']==thresh)
+        vals = np.where(metrics['thresh']==thresh)
         
         if thresh:
             for idx, key in enumerate(keys):
                 y = []
                 for i in range(len(ss[0])):
-                    l = find_nearest(metrics['acc_thresh'][ss][i], thresh)
+                    l = find_nearest(metrics['thresh'][ss][i], thresh)
                     #print key, k, metrics['n'][ss][i], l
                     #print metrics['acc_thresh'][ss][i][l], thresh
                     #print len(metrics['acc_thresh'][ss][i]), len(metrics[key][ss][i])
@@ -156,7 +86,8 @@ def plot_singlemetric_samplesize(metrics, method, thresh=None,
             
         ax.set_title("K=%i"%k)
         ax.set_ylim(0.,1.)
-        ax.set_xlim(5,15000)
+        x_max = np.max(metrics['n'])
+        ax.set_xlim(5,10**round(np.log10(x_max)))
         j+=1
 
     ax.legend(loc='best')
@@ -164,11 +95,12 @@ def plot_singlemetric_samplesize(metrics, method, thresh=None,
     if thresh:
         fig.suptitle("Thresh = %0.1f"%thresh, fontsize=20, weight='bold')
         plt.tight_layout(rect=[0, 0, 1, .97])
-        plt.savefig('%s_%.2f_metric_samplesize.png'%(method,thresh))
+        plt.savefig('%s_%.2f_metric_samplesize_%s.png'%(method,thresh, 
+                                                        name_modifier))
     else:
         plt.tight_layout()
-        plt.savefig('%s_metric_samplesize.png'%method)
-        print '%s_metric_samplesize.png'%method
+        plt.savefig('%s_metric_samplesize_%s.png'%(method, name_modifier))
+        print '%s_metric_samplesize_%s.png'%(method, name_modifier)
 
     plt.show()
     plt.close()
@@ -225,7 +157,7 @@ def plot_metriccurves(eval_mx, metric, method, **kwargs):
 
         labels = {'x': 'FPR', 'y':'TPR', 'leg':'lower right'}
 
-        filename = '%s_ROC.png'%method
+        filename = '%s_ROC_%s.png'%(method, name_modifier)
 
         curveplot(eval_mx, keys, colors, labels, filename, **kwargs)
 
@@ -238,7 +170,7 @@ def plot_metriccurves(eval_mx, metric, method, **kwargs):
 
         labels = {'x': 'Recall (TPR)', 'y':'Precision', 'leg':'lower left'}
 
-        filename = '%s_PR.png'%method
+        filename = '%s_PR_%s.png'%(method, name_modifier)
 
         curveplot(eval_mx, keys, colors, labels, filename, **kwargs)
 
@@ -251,7 +183,7 @@ def plot_metriccurves(eval_mx, metric, method, **kwargs):
 
         labels = {'x': 'Contamination', 'y':'Completeness', 'leg':'lower right'}
 
-        filename = '%s_CC.png'%method
+        filename = '%s_CC_%s.png'%(method, name_modifier)
 
         curveplot(eval_mx, keys, colors, labels, filename, 
                   complement_x=True, one_to_one=False)
@@ -267,8 +199,8 @@ def plot_metriccurves(eval_mx, metric, method, **kwargs):
         exit()
 
 
-def plot_the_shits(method, metric='all', **kwargs):
-    F = open('%s_eval.pickle'%method,'rb')
+def plot_the_shits(method, metric='all',  **kwargs):
+    F = open('%s_eval_%s.pickle'%(method, kwargs['name_modifier']), 'rb')
     eval_mx = cPickle.load(F)
     F.close()
  
@@ -292,6 +224,8 @@ def main():
     parser.add_option("-t", dest="thresh", default=None, help="Set threshold")
     parser.add_option("-p", dest="plotonly", action='store_true', default=False,
                       help="Skip machine learning and go straight to plotting")
+    parser.add_option("-n", dest="name_modifier", default=None, 
+                      help="Additional naming identification for output files")
     (options, args) = parser.parse_args()
 
     if options.thresh:  thresh = float(options.thresh)
@@ -305,43 +239,65 @@ def main():
         kwargs = {'thresh':thresh, 
                   'keys':['accuracy','contamination', 'completeness', 
                           'falseomis','trueneg'],
-                 'labels':['Accuracy', 'Contamination (S)', 'Completeness (S)',
-                            'Contamination (F)', 'Completeness (F)']}
+                  'labels':['Accuracy', 'Contamination (S)', 'Completeness (S)',
+                            'Contamination (F)', 'Completeness (F)'], 
+                  'name_modifier':options.name_modifier}
         print options.weight
         plot_the_shits(metric='all', method='KNC_%s'%options.weight, **kwargs)
         #explore_accuracy(method='KNC_uniform')
         exit()
 
 
-    ################### READ IN TRAINING / VALIDATION DATA #############       
-    # Ground truth for training sample
-    gztable = 'unneeded/GZ2assets_Nair_Morph_zoo2Main.fits'
-    gztruth = Table.read(gztable)
+    ################### READ IN TRAINING / VALIDATION DATA #############   
     
-    filename = 'GZ2_testML_metadata_new.pickle'
-    subjects = swap.read_pickle(filename, 'metadata')
+    filename = 'GZ2_testML2_metadata.pickle'
+    data = swap.read_pickle(filename, 'metadata')
 
-    subjects['Nair_label'] = np.zeros(len(subjects),dtype=int)
-    select_Nair(subjects,filename)
-    pdb.set_trace()
-    subjects = subjects[subjects['G']>0.]
-    subjects = subjects[subjects['total_classifications']>0]
-        
+    # This is the "New" validation sample -- Expertly classified
+    valid_idx = np.where((data['MLsample']=='valid') & (data['GZ2_label']!=-1)
+                         & (data['Nair_label']!=-1) 
+                         & (data['Expert_label']!=-1))
+    valid = data[valid_idx]
+    print len(valid)
+    valid_meta, valid_features = ml.extract_training(valid)
+    valid_labels_ex = valid_meta['Expert_label'].filled()
+    valid_labels_gz = valid_meta['GZ2_label'].filled()
+    valid_labels_nr = valid_meta['Nair_label'].filled()
+
+    # Let's try to recreate what I had before. 
+    valid2_idx = np.where((data['Nair_label']!=-1))
+    valid2 = data[valid2_idx]
+    valid2_meta, valid2_features = ml.extract_training(valid2)
+    valid2_labels = valid2_meta['Nair_label'].filled()
+
+    # Which validation sample do I want to use? BLAH.
+    # --> Used this to try to replicate what I had a month ago (Nair "truth")
+    valid_features = valid2_features
+    valid_labels = valid2_labels
     
-    valid = subjects[subjects['MLsample']=='valid']
-    sample = subjects[subjects['MLsample']!='valid'] 
+    # Now test on the new, smaller validation sample
+    # --> first, still with Nair "truth"
+    #valid_labels = valid_labels_nr
+    # --> second, using GZ2 user "truth"
+    #valid_labels = valid_labels_gz
+    # --> finally, using Expert "truth"
+    #valid_labels = valid_labels_ex
+
+    # Load up the training set (ALL GZ labels)
+    train_idx = np.where((data['MLsample']!='valid') & (data['GZ2_label']!=-1))
+    train = data[train_idx]
+    train_meta, train_features = ml.extract_training(train)
+    train_labels = train_meta['GZ2_label'].filled()
     
-    valid_data, valid_sample = ml.extract_training(valid)
-    truth = get_answers(gztruth, valid_data)
-    
+   
     # select various and increasing size training samples
     # -------------------------------------------------------------------
-    N = [50,100,500,1000,5000,10000]#
+    N = [50,100,500,1000,5000,10000,50000]#
     K = [5,10,15,20,25,30,35,40,45,50]
     
     evaluation_metrics = {'precision':[], 'recall':[], 'pr_thresh':[], 
                           'falsepos':[], 'truepos':[], 'roc_thresh':[],
-                          'accuracy':[], 'acc_thresh':[], 'falseomis':[],
+                          'accuracy':[], 'thresh':[], 'falseomis':[],
                           'falseneg':[], 'trueneg':[], 
                           'contamination':[], 'completeness':[],
                           'precision_score':[], 'recall_score':[], 
@@ -351,59 +307,62 @@ def main():
     ################### RUN CLASSIFIERS WITIH VARIOUS PARAMS ############
         
     for j,n in enumerate(N):
+        train_features_sub = train_features[:n]
+        train_labels_sub = train_labels[:n]
+        
+        #ratio = float(np.sum(train_labels_sub==1))/len(train_labels_sub)
+        #print "Ratio of Smooth / Total for training sample (%i): %f"\
+        #    %(n, ratio)
+        
         for i,k in enumerate(K):
-            train = sample[:n]
-            train_data, train_sample = ml.extract_training(train)
-            labels, not_found = get_truth(gztruth,train_data)
-            
-            if len(not_found)>0:
-                for idx in not_found[0]:
-                    train = train[:idx]+train[idx:]
                     
             # Adjust k because it can't be => sample size
             if n <= k: k = n-1
             
-            preds, probs, machine = ml.runKNC(train_sample, labels, 
-                                              valid_sample, 
+            preds, probs, machine = ml.runKNC(train_features_sub, 
+                                              train_labels_sub, 
+                                              valid_features, 
                                               N=k, weights=options.weight)
+
             #preds = ml.runRNC(train_sample, labels, valid_sample, R=k, 
             #                  weights='distance', outlier=0)
             
-            fps, tps, thresh = metrics._binary_clf_curve(truth,probs[:,1])
+            fps, tps, thresh=metrics._binary_clf_curve(valid_labels,probs[:,1])
 
-            metrics = metrics.compute_binary_metrics(fps, tps)
-            [acc, tpr, fpr, fnr, tnr, prec, fdr, fomis, npv] = metrics
+            metrics_list = metrics.compute_binary_metrics(fps, tps)
+            [acc, tpr, fpr, fnr, tnr, prec, fdr, fomis, npv] = metrics_list
 
-            evaluation_metrics['completeness'].append(complete)
-            evaluation_metrics['contamination'].append(contam)
-            evaluation_metrics['falseneg'].append(falsenegs)
-            evaluation_metrics['trueneg'].append(truenegs)
-            evaluation_metrics['falseomis'].append(fomr)
+            evaluation_metrics['completeness'].append(tpr)
+            evaluation_metrics['contamination'].append(fdr)
+            evaluation_metrics['falseneg'].append(fnr)
+            evaluation_metrics['trueneg'].append(tnr)
+            evaluation_metrics['falseomis'].append(fomis)
             evaluation_metrics['accuracy'].append(acc)
-            evaluation_metrics['acc_thresh'].append(thresh)
+            evaluation_metrics['thresh'].append(thresh)
             
             # Curves -- for plotting ROC and PR
-            pp, rr, thresh = mx.precision_recall_curve(truth, probs[:,1])
+            pp, rr, thresh2 = mx.precision_recall_curve(valid_labels,probs[:,1])
             evaluation_metrics['precision'].append(pp)
             evaluation_metrics['recall'].append(rr)
-            evaluation_metrics['pr_thresh'].append(thresh)
+            evaluation_metrics['pr_thresh'].append(thresh2)
             
-            fpr, tpr, thresh = mx.roc_curve(truth, probs[:,1], pos_label=1)
+            fpr, tpr, thresh3=mx.roc_curve(valid_labels, probs[:,1],pos_label=1)
             evaluation_metrics['falsepos'].append(fpr)
             evaluation_metrics['truepos'].append(tpr)
-            evaluation_metrics['roc_thresh'].append(thresh)
+            evaluation_metrics['roc_thresh'].append(thresh3)
             
             # Single value metrics -- for plotting against N? K? whatever...
             evaluation_metrics['roc_auc_score1'].append(mx.auc(fpr, tpr))
             evaluation_metrics['roc_auc_score2'].append(mx.roc_auc_score(
-                truth,preds))
+                valid_labels,preds))
             evaluation_metrics['precision_score'].append(mx.precision_score(
-                truth,preds))
+                valid_labels,preds))
             evaluation_metrics['recall_score'].append(mx.recall_score(
-                truth,preds))
+                valid_labels,preds))
             evaluation_metrics['accuracy_score'].append(mx.accuracy_score(
-                truth,preds))
-            evaluation_metrics['f1_score'].append(mx.f1_score(truth,preds))
+                valid_labels,preds))
+            evaluation_metrics['f1_score'].append(mx.f1_score(
+                valid_labels,preds))
             
             # current k and n so I don't have to backstrapolate
             evaluation_metrics['k'].append(k)
@@ -414,7 +373,7 @@ def main():
         evaluation_metrics[key] = np.array(evaluation_metrics[key])
         
     # If everything works... Let's save this huge structure as a pickle
-    filename = 'KNC_%s_eval.pickle'%options.weight 
+    filename = 'KNC_%s_eval_%s.pickle'%(options.weight, options.name_modifier)
     F = open(filename,'wb')
     cPickle.dump(evaluation_metrics, F, protocol=2)
     print "Saved evaluation metrics %s"%filename
@@ -467,19 +426,3 @@ for j,n in enumerate(N):
     print mx.classification_report(answers,predictions)
 
 
-    metrics.compute_metrics(fps, tps)
-    fns, tns = tps[-1]-tps, fps[-1]-fps
-    
-    precision = tps / (tps + fps)
-    contam = fps / (tps + fps)
-    fomr = fns / (fns + tns)
-    
-    complete = tps / tps[-1]
-    falsenegs = fns / fns[0]
-    truenegs = tns / tns[0]
-    
-    tps_ = tps / tps[-1]
-    fps_ = fps / fps[-1]
-    
-    acc = (1 + (1/precision - 1)*(1/fps_ - 1)) / ( (1/tps_) + 
-                                                   (1/precision - 1) / fps_ )
