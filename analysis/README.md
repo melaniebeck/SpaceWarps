@@ -21,26 +21,31 @@ For each night, SWAP creates a slew of output files (report is always True):
     SURVEY_Y-D-H_00:00:00_training_false_positives.txt
     SURVEY_Y-D-H_00:00:00_training_true_positives.txt
 
-Additionally, SWAP requires a metadata pickle, the name of which can be predefined in the config (but is currently called `GZ2_testML2_metadata.pickle`. This file is essentially the link between `SWAP.py` and `MachineClassifier.py` and contains metadata for all GZ2 subjects necessary for the machine classifiers to train. 
+Additionally, SWAP requires a metadata pickle, the name of which can be predefined in the config (but is currently called `GZ2_testML2_metadata.pickle`.) This file must already exist and is not created by the code! It is  essentially the link between `SWAP.py` and `MachineClassifier.py` and contains metadata for all GZ2 subjects necessary for the machine classifiers to train. 
+
+Specifically, the file contains the features which the machines train on (morphology indicators measured from the pixel values of the original FITS files for the galaxy images), the original labels from the GZ2 published data, and a tag that specifies that galaxy as part of the "train", "valid", or "test" sample. All tags start as "test" (except for a predefined validation sample; these subjects are labeled "valid"). When an image crosses either the rejection or acceptance thresholds in SWAP, its tag flips from "test" to "train".  [ISSUE: In order to make this more compatible with original SWAP, need to tuck this all away in one of the `swap/*.py` supporting modules.]
 
 ### Machine Classifications
-`MachineClassifier.py`
+`MachineClassifier.py` always reads the `update.config` file. There are several parameters which now serve only to inform the machine on what to do. As said above, MC also requires the metadata pickle. This module is by NO MEANS complete yet and will not run smoothly. 
+
+Here's what it currently does: 
+ * reads `update.config`
+ * reads in the metadata pickle
+ * selects out the validation sample and the training sample based on the tags in the metadata pickle
+ * 
+
 
 
  accepts output from SWAP which it uses as a training sample. Once the machine has learned it then runs on a test sample which consists of the remaining galaxies in GZ2, i.e. those which have not yet been classified by SWAP. This is to avoid overfitting. When running SWAPSHOP, SWAP is called first and then MachineClassifier is called. MachineClassifier can also be run "offline" whereby it cycles through each night's SWAP output and processes them in rapid succession. This is not ideal as then subjects "retired" by the Machine are not fed back into SWAP. This is still under active modification. 
 
-For each night, MachineClassifier creats the following output files:
 
-    SURVEY_Y-D-H_00:00:00_machine_testsample.fits   # remaining test sample for that night
-    SURVEY_Y-D-H_00:00:00_machine.txt               # machine output: predictions & probabilities for the test sample
 
-Additionally, MachineClassifier requires a pre-made catalog called `GZ2assets_Nair_Morph_zoo2Main.fits` which contains further metadata for GZ2 subjects which also have morphological parameters measured for them. For this file and the one mentioned above, please ask me. 
 
 ### Exploring the output
 There are a series of `explore_*.py` scripts that look at the output of the SWAP/Machine simulations. These require some of the output files described above (those with comments next to them) in addition to the `SURVEY_*.pickle` files. 
 
 
-### What needs to be done:
+### What needs to be done [really should create issues for these...]:
 * Determine how the Machine retires (threshold); flag retired galaxies so they are no longer processed through SWAP (This is being developed/explored in `explore_machine.py`)
 * Once the above is implemented, run the first LIVE test of SWAP + MachineClassifier (tests so far have had MC in 'offline' mode.
 * Try: Instead of using candidate and rejected catalogs - try detected and rejected catalogs? Within a few days there are so many classifications being processed by SWAP that the training sample becomes huge and the test sample miserably small.
