@@ -23,7 +23,9 @@ For each night, SWAP creates a slew of output files (report is always True):
 
 Additionally, SWAP requires a metadata pickle, the name of which can be predefined in the config (but is currently called `GZ2_testML2_metadata.pickle`.) This file must already exist and is not created by the code! It is  essentially the link between `SWAP.py` and `MachineClassifier.py` and contains metadata for all GZ2 subjects necessary for the machine classifiers to train. 
 
-Specifically, the file contains the features which the machines train on (morphology indicators measured from the pixel values of the original FITS files for the galaxy images), the original labels from the GZ2 published data, and a tag that specifies that galaxy as part of the "train", "valid", or "test" sample. All tags start as "test" (except for a predefined validation sample; these subjects are labeled "valid"). When an image crosses either the rejection or acceptance thresholds in SWAP, its tag flips from "test" to "train".  [ISSUE: In order to make this more compatible with original SWAP, need to tuck this all away in one of the `swap/*.py` supporting modules.]
+Specifically, the file contains the features which the machines train on (morphology indicators measured from the pixel values of the original FITS files for the galaxy images), the original labels from the GZ2 published data, and a tag that specifies that galaxy as part of the *train*, *valid*, or *test* sample. All tags start as *test* (except for a predefined validation sample). When an image crosses either the rejection or acceptance thresholds in SWAP, its tag flips from *test* to *train*.  [ISSUE: In order to make this more compatible with original SWAP, need to tuck this all away in one of the `swap/*.py` supporting modules.]
+
+---
 
 ### Machine Classifications
 `MachineClassifier.py` always reads the `update.config` file. There are several parameters which now serve only to inform the machine on what to do. As said above, MC also requires the metadata pickle. This module is by NO MEANS complete yet and will not run smoothly. 
