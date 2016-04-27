@@ -32,13 +32,10 @@ Here's what it currently does:
  * reads `update.config`
  * reads in the metadata pickle
  * selects out the validation sample and the training sample based on the tags in the metadata pickle
- * 
+ * performs cross validation with the training sample to determine appropriate paramters for the machine classifier
+ * creates an **agent** for the machine which tracks the training history and the confusion matrix produced by the trained machine on the validation set. 
 
-
-
- accepts output from SWAP which it uses as a training sample. Once the machine has learned it then runs on a test sample which consists of the remaining galaxies in GZ2, i.e. those which have not yet been classified by SWAP. This is to avoid overfitting. When running SWAPSHOP, SWAP is called first and then MachineClassifier is called. MachineClassifier can also be run "offline" whereby it cycles through each night's SWAP output and processes them in rapid succession. This is not ideal as then subjects "retired" by the Machine are not fed back into SWAP. This is still under active modification. 
-
-
+LOTS more stuff still has to be done on this... 
 
 
 ### Exploring the output
