@@ -17,22 +17,12 @@
  * to reduce time on each query
  */
 
-/* This command takes forever to execute -- probably didn't index morphology */
-CREATE TABLE asset_morph AS (
-SELECT a.id, a.location, a.stripe82, a.stripe82_coadd, a.extra_original, 
-       a.classification_count, m.*
-FROM assets as a
-     JOIN morphology as m
-     	  ON m.name = a.name );
 
-/* Use GZ2assets_morph.csv 
-CREATE TABLE morphology (
-       name VARCHAR(20), Rp FLOAT, elipt FLOAT, C FLOAT,
-       A FLOAT, G FLOAT, M20 FLOAT, Rpflag INT(1), 
-       bflag INT(1), outdir INT(1));
-*/
 
-/*
+/* This command creates the table required by SWAP.py by joining the relevant
+   tables in the gz2 database to provide SWAP with the necessary information. 
+   Change the WHERE statement to select the task (filter) of interest. */
+
 CREATE TABLE task3 AS (
 SELECT an.*, cl.user_id, ac.asset_id, a.name, a.external_ref
 FROM annotations as an
@@ -43,8 +33,25 @@ FROM annotations as an
      JOIN assets as a 
      	  ON a.id = ac.asset_id
 WHERE an.task_id = 3 );
+
+/* This command takes forever to execute -- probably didn't index morphology
+   4/26/16 -- This table is no longer needed seeing as I restructured how and 
+   where the machine accesses morphology information
+
+CREATE TABLE asset_morph AS (
+SELECT a.id, a.location, a.stripe82, a.stripe82_coadd, a.extra_original, 
+       a.classification_count, m.*
+FROM assets as a
+     JOIN morphology as m
+     	  ON m.name = a.name );
 */
 
+/* Use GZ2assets_morph.csv 
+CREATE TABLE morphology (
+       name VARCHAR(20), Rp FLOAT, elipt FLOAT, C FLOAT,
+       A FLOAT, G FLOAT, M20 FLOAT, Rpflag INT(1), 
+       bflag INT(1), outdir INT(1));
+*/
 
 /*
 				NOTES on MYSQL

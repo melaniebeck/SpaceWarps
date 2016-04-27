@@ -7,9 +7,9 @@ GZ2 classifications are stored in an MySQL database. `swap/mysqldb.py` was creat
 In order to reduce the time of each SQL query, tables in the GZ2 db were joined before running SWAP. The script for the particular arrangement can be found in `prepare_gz2sql.py`. 
 
 ### SWAP Workflow
-SWAP has been modified to run on a "daily" basis whereby all classifications on a given day in the original GZ2 database are selected and processed. When running with SWAPSHOP, SWAP processes each day's data after which the day is automatically updated until hitting a point defined by the user in the `last` variable on line 108 in SWAP.py. 
+SWAP has been modified to run on a "daily" basis. A parameter called "increment" was added to the config file. This controls the size of the timestep in units of days. The start and end days are still provided but the code will now only collect from the database those classifications made in the increment timestep. At the end of the SWAP run, the date is automatically updated so that the update.config will start classifications on the next "day". This updating will continue until the config file has updated to the point where the start and end days are the same.  
 
-For each night, SWAP creates a slew of output files: 
+For each night, SWAP creates a slew of output files (report is always True): 
 
     SURVEY_Y-D-H_00:00:00_candidate_catalog.txt     # any subject which has been classified
     SURVEY_Y-D-H_00:00:00_candidates.txt        
@@ -21,10 +21,13 @@ For each night, SWAP creates a slew of output files:
     SURVEY_Y-D-H_00:00:00_training_false_positives.txt
     SURVEY_Y-D-H_00:00:00_training_true_positives.txt
 
-Additionally, SWAP requires a pre-made catalog called `GZ2assets_Nair_Morph.fits` which contains further metadata for all GZ2 subjects. Many of the above output files contain some of this data for further processing (see below).  
+Additionally, SWAP requires a metadata pickle, the name of which can be predefined in the config (but is currently called `GZ2_testML2_metadata.pickle`. This file is essentially the link between `SWAP.py` and `MachineClassifier.py` and contains metadata for all GZ2 subjects necessary for the machine classifiers to train. 
 
 ### Machine Classifications
-`MachineClassifier.py` accepts output from SWAP which it uses as a training sample. Once the machine has learned it then runs on a test sample which consists of the remaining galaxies in GZ2, i.e. those which have not yet been classified by SWAP. This is to avoid overfitting. When running SWAPSHOP, SWAP is called first and then MachineClassifier is called. MachineClassifier can also be run "offline" whereby it cycles through each night's SWAP output and processes them in rapid succession. This is not ideal as then subjects "retired" by the Machine are not fed back into SWAP. This is still under active modification. 
+`MachineClassifier.py`
+
+
+ accepts output from SWAP which it uses as a training sample. Once the machine has learned it then runs on a test sample which consists of the remaining galaxies in GZ2, i.e. those which have not yet been classified by SWAP. This is to avoid overfitting. When running SWAPSHOP, SWAP is called first and then MachineClassifier is called. MachineClassifier can also be run "offline" whereby it cycles through each night's SWAP output and processes them in rapid succession. This is not ideal as then subjects "retired" by the Machine are not fed back into SWAP. This is still under active modification. 
 
 For each night, MachineClassifier creats the following output files:
 

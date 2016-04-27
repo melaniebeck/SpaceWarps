@@ -6,10 +6,11 @@ from astropy.table import Table
 import cPickle
 import pdb
 import matplotlib.pyplot as plt
-import metrics
+import metrics as mtrx
 #from sklearn.metrics import roc_curve, roc_auc_score, classification_report
 from sklearn.grid_search import GridSearchCV
-from sklearn.neighbors import KNeighborsClassifier, RadiusNeighborsClassifier
+from sklearn.neighbors import RadiusNeighborsClassifier
+from sklearn.neighbors import KNeighborsClassifier as KNC
 import sklearn.metrics as mx
 from optparse import OptionParser
 from figure_styles import set_big
@@ -214,8 +215,6 @@ def plot_the_shits(method, metric='all',  **kwargs):
     #plot_metriccurves(eval_mx, metric, method)
 
 
-
-
 def main():
 
     parser = OptionParser()
@@ -258,7 +257,6 @@ def main():
                          & (data['Nair_label']!=-1) 
                          & (data['Expert_label']!=-1))
     valid = data[valid_idx]
-    print len(valid)
     valid_meta, valid_features = ml.extract_training(valid)
     valid_labels_ex = valid_meta['Expert_label'].filled()
     valid_labels_gz = valid_meta['GZ2_label'].filled()
@@ -272,12 +270,12 @@ def main():
 
     # Which validation sample do I want to use? BLAH.
     # --> Used this to try to replicate what I had a month ago (Nair "truth")
-    valid_features = valid2_features
-    valid_labels = valid2_labels
+    #valid_features = valid2_features
+    #valid_labels = valid2_labels
     
     # Now test on the new, smaller validation sample
     # --> first, still with Nair "truth"
-    #valid_labels = valid_labels_nr
+    valid_labels = valid_labels_nr
     # --> second, using GZ2 user "truth"
     #valid_labels = valid_labels_gz
     # --> finally, using Expert "truth"
@@ -292,7 +290,7 @@ def main():
    
     # select various and increasing size training samples
     # -------------------------------------------------------------------
-    N = [50,100,500,1000,5000,10000,50000]#
+    N = [100,500,1000,5000,10000,50000]#
     K = [5,10,15,20,25,30,35,40,45,50]
     
     evaluation_metrics = {'precision':[], 'recall':[], 'pr_thresh':[], 
@@ -305,7 +303,8 @@ def main():
                           'roc_auc_score2':[], 'f1_score':[], 'k':[],'n':[]}
     
     ################### RUN CLASSIFIERS WITIH VARIOUS PARAMS ############
-        
+    ##############  this is running through various K manually ##########
+
     for j,n in enumerate(N):
         train_features_sub = train_features[:n]
         train_labels_sub = train_labels[:n]
@@ -327,9 +326,9 @@ def main():
             #preds = ml.runRNC(train_sample, labels, valid_sample, R=k, 
             #                  weights='distance', outlier=0)
             
-            fps, tps, thresh=metrics._binary_clf_curve(valid_labels,probs[:,1])
+            fps, tps, thresh = mtrx._binary_clf_curve(valid_labels,probs[:,1])
 
-            metrics_list = metrics.compute_binary_metrics(fps, tps)
+            metrics_list = mtrx.compute_binary_metrics(fps, tps)
             [acc, tpr, fpr, fnr, tnr, prec, fdr, fomis, npv] = metrics_list
 
             evaluation_metrics['completeness'].append(tpr)
@@ -371,12 +370,13 @@ def main():
                 
     for key, val in evaluation_metrics.iteritems():
         evaluation_metrics[key] = np.array(evaluation_metrics[key])
-        
+
     # If everything works... Let's save this huge structure as a pickle
     filename = 'KNC_%s_eval_%s.pickle'%(options.weight, options.name_modifier)
     F = open(filename,'wb')
     cPickle.dump(evaluation_metrics, F, protocol=2)
     print "Saved evaluation metrics %s"%filename
+
 
     ######################### PLOT THE SHITS  #############################
     #kwargs = {'thresh':.5, 'keys':['accuracy','precision','recall']}
@@ -389,40 +389,5 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-# Not sure exactly how GridSearch works...
-# Second Test: try running KNC using a GridSearch 
-for j,n in enumerate(N):
-    train = sample[:n]
-    train_data, train_sample = ml.extract_training(train)
-    labels, not_found = get_truth(gztruth,train_data)
-
-    tuned_parameters = [{'n_neighbors':K, 'weights':['uniform','distance']}]
-    #scores = ['precision', 'recall']
-    #for score in scores:
-    clf = GridSearchCV(KNeighborsClassifier(n_neighbors=5), 
-                       tuned_parameters, cv=5, scoring='precision_weighted',
-                       error_score=np.nan)
-    
-    clf.fit(train_sample,labels)
-    predictions = clf.predict(valid_sample)
-    probas_ = clf.predict_proba(valid_sample)
-    
-    pp,rr,thresh = mx.precision_recall_curve(answers,probas_[:,1])
-    precision.append(pp)
-    recall.append(rr)
-    thresholds.append(thresh)
-    
-    fpr, tpr, thresh = mx.roc_curve(answers, probas_[:,1], pos_label=1)
-    falsepos.append(fpr)
-    truepos.append(tpr)
-    roc_thresh.append(thresh)
-    
-    print "Best params for N=%i sample size:"%n, clf.best_params_
-    params.append(clf.best_params_)
-    print "Accuracy score:", mx.accuracy_score(answers,predictions)
-    accuracy.append(mx.accuracy_score(answers,predictions))
-    print mx.classification_report(answers,predictions)
 
 

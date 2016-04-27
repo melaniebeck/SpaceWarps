@@ -122,6 +122,7 @@ def MachineClassifier(options, args):
         # Test "accuracy" (metric of choice) on validation sample
         score = trained_model.score(valid_features, valid_labels)
 
+        """
         MLbureau.member[Name].record_training(\
                             model_described_by=trained_model.best_estimator_, 
                             with_params=trained_model.best_params_, 
@@ -130,7 +131,7 @@ def MachineClassifier(options, args):
                             with_train_acc=traineed_model.best_score_,
                             and_valid_acc=trained_model.score(valid_features,
                                                               valid_labels))
-
+        """
         # Store the trained machine
         MLbureau.member[Name].model = trained_model
 
@@ -151,7 +152,7 @@ def MachineClassifier(options, args):
 
         pdb.set_trace()
 
-
+        
 
         
         # 3. compare the metric of choice with the evaluation criterion to
