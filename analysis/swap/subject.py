@@ -130,6 +130,7 @@ class Subject(object):
         # Calculate the mean probability and the error on it
         mean_logp =sum(np.log(self.probability))/Ntrajectory
         error_logp=sum((np.log(self.probability)-mean_logp)**2/Ntrajectory)
+        # GENERISIZE THIS
         return 'individual (%s) subject, ID %s, Pr(LENS|d) = %.2f \pm %.2f' % \
                (self.kind,self.ID,np.exp(mean_logp),np.exp(mean_logp)*error_logp)
 
@@ -174,6 +175,7 @@ class Subject(object):
 
             # update the annotation history
             if record:
+                # GENERISIZE THIS
                 as_being_dict = {'SMOOTH': 1, 'NOT': 0}
                 self.annotationhistory['Name'] = \
                             np.append(self.annotationhistory['Name'], by.name)
@@ -203,6 +205,7 @@ class Subject(object):
                     PD_realization=np.ones(Ntrajectory) * by.PD
                 prior_probability=self.probability*1.0;  # TODO: not used?!
 
+                # GENERISIZE THIS
                 if as_being == 'SMOOTH':
                     likelihood = PL_realization + laplace_smoothing
                     likelihood /= (PL_realization*self.probability + 
@@ -285,6 +288,7 @@ class Subject(object):
                 continue
 
             by = agent
+            # GENERISIZE THIS
             as_being = ['NOT', 'SMOOTH'][classification]
             likelihood_sum += self.was_described(by=by,as_being=as_being,while_ignoring=while_ignoring,haste=haste,online=False,record=record,realize_confusion=realize_confusion,laplace_smoothing=laplace_smoothing)
             N_classifications_used += 1

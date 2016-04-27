@@ -202,6 +202,7 @@ def SWAP(argv):
                                         '%Y-%m-%d_%H:%M:%S')
     print "SWAP: and "+tonights.parameters['end']
 
+    # MAKE IT POSSIBLE TO RUN "DAILY" OR "BATCHLY"
     # in what timestep shall we select classifications to analyze? 
     inc = tonights.parameters['increment']
     increment = datetime.timedelta(days=inc)
@@ -236,8 +237,6 @@ def SWAP(argv):
     try: machine = tonights.parameters['machine']
     except: machine = False
     print "SWAP: running MachineClassifier.py after this run?",machine
-
-    #pdb.set_trace()
 
     # ------------------------------------------------------------------
     # Read in, or create, a bureau of agents who will represent the
@@ -306,6 +305,7 @@ def SWAP(argv):
 
         P = sample.member[ID].mean_probability
 
+        # MAKE THIS OPTIONAL IN CASE NO MACHINE
         #-------------------------------------------------------------------
         #                  UPDATE THE METADATA FILE FOR ML
         #-------------------------------------------------------------------
@@ -363,6 +363,7 @@ def SWAP(argv):
             print swap.dashedline
             print "SWAP: Subject "+ID+" was classified by "+Name+\
                 " during Stage ",stage
+            # GENERISIZE THIS
             print "SWAP: he/she said "+X+" when it was actually "+Y+\
                 ", with Pr(LENS) = "+str(P)
             print "SWAP: their agent reckons their contribution (in bits) = ",\
@@ -395,6 +396,10 @@ def SWAP(argv):
     #-------------------------------------------------------------------------
     # offline.py goes here
     #-------------------------------------------------------------------------
+
+    # PUT THIS BACK THE WAY IT WAS KINDA? 
+    # IT DOESN'T WORK HOW I WANT FOR GZ STUFF BUT IT APPARENTLY WORKED WELL
+    # FOR SW STUFF. 
 
     # All good things come to an end:
     if count == 0:

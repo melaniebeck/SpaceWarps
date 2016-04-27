@@ -3,6 +3,7 @@
 import os, glob, pdb, ast
 
 # ======================================================================
+# GENERISIZE THIS (and reduce/remove global parameters)
 # Global parameters:
 
 # Limits to subject probability (cannot go over 1 anyway):

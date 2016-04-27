@@ -5,7 +5,7 @@ import os,sys,datetime,pdb
 
 try: import MySQLdb as mdb
 except:
-    print "MySQLdb: MySQLdb is not installed. You can still practise though --really?"
+    print "MySQLdb: MySQLdb is not installed."
     # sys.exit()
 
 # ======================================================================
@@ -30,6 +30,7 @@ class MySQLdb(object):
     def __init__(self):
         
         try: 
+            # GENERISIZE THIS
             con1 = mdb.connect('localhost', 'root', '8croupier!', 'gz2')
             con2 = mdb.connect('localhost', 'root', '8croupier!', 'gz2')
         except:
@@ -50,17 +51,15 @@ class MySQLdb(object):
         except: pass
 
         if word == 'since':
+            # GENERISIZE THIS
             query = ("select * from task1_full as t "
                      "where t.created_at > '%s'"%str(t))
             self.cur1.execute(query)
 
         elif word == 'before':
             query = ("select * from task1_full as t "
-                     "where t.user_id = '142530' "
                      "and t.created_at < '%s'"%str(t))
             self.cur1.execute(query)
-            #"where t.asset_id = '5507' "
-            #"or t.name = '587722981742084144' "
 
         elif word == 'between':
             query = ("select * from task1_full as t "
@@ -81,7 +80,9 @@ class MySQLdb(object):
 # record in the classifications table:
 
     def digest(self,classification,survey,subjects,method=False):
-        
+        # GENERISIZE THIS -- set up a different way to label "flavor", "kind",
+        # etc? Also, standardize the names of the classification column names?
+
         # When was this classification made?
         t = classification['created_at'].strftime('%Y-%m-%d_%H:%M:%S')
 

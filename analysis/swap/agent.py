@@ -6,6 +6,7 @@ import numpy as np
 import pylab as plt
 import pdb
 
+# GENERIZE THIS
 actually_it_was_dictionary = {'SMOOTH': 1, 'NOT': 0, 'UNKNOWN': -1}
 
 # ======================================================================

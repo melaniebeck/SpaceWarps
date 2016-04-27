@@ -174,7 +174,7 @@ def write_catalog(sample,filename,thresholds,kind='test',source=None):
                 output = (subject.ZooID, P, subject.exposure, subject.location)
                 F.write('%s  %9.7f  %s       %s\n'%output)
                 Nlenses += 1            
-
+                
         else:
             if kind=='rejected' and subject.state == 'inactive' and \
                subject.retiredby == 'swap':

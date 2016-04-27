@@ -307,11 +307,13 @@ class Collection(object):
             plt.axvline(x=swap.prior,color='gray',linestyle='dotted')
             plt.axvline(x=x['detection'],color='blue',linestyle='dotted')
             plt.axvline(x=x['rejection'],color='red',linestyle='dotted')
+            # GENERISIZE THIS
             lower.set_xlabel('Posterior Probability Pr(SMOOTH|d)')
             lower.set_ylabel('No. of subjects')
 
         else:
             lower = False
+            # GENERISIZE THIS
             upper.set_xlabel('Posterior Probability Pr(SMOOTH|d)')
 
 

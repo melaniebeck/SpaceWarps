@@ -46,6 +46,7 @@ class Bureau(object):
 
     def __init__(self):
         self.member = {}
+        # GENERISIZE THIS
         self.probabilities = {'SMOOTH':np.array([]), 'NOT':np.array([])}
         self.contributions = np.array([])
 
@@ -95,6 +96,7 @@ class Bureau(object):
             Ntraining = np.append(Ntraining,agent.NT)
             Ntotal = np.append(Ntotal,agent.N)  # Nc
 
+        # GENERISIZE THIS
         self.probabilities['SMOOTH'] = PLarray
         self.probabilities['NOT'] = PDarray
         self.contributions = contributions
@@ -184,6 +186,7 @@ class Bureau(object):
         # Only plot a shortlist of 200, or fewer, uniformly sampled:
         TheseFewNames = self.shortlist(np.min([Nc,self.size()]))
         index = [i for i,Name in enumerate(self.list()) if Name in set(TheseFewNames)]
+        # GENERISIZE THIS
         PD = self.probabilities['NOT'][index]
         PL = self.probabilities['SMOOTH'][index]
         I = self.contributions[index]
@@ -233,6 +236,7 @@ class Bureau(object):
 
 
         # For the histograms use all the information available
+        # GENERISIZE THIS
         PD=self.probabilities['NOT']
         PL=self.probabilities['SMOOTH']
 
@@ -256,6 +260,7 @@ class Bureau(object):
         plt.axvline(0.5,color='gray',linestyle='dotted')
         for label in lowerhist.get_yticklabels():
             label.set_visible(False)
+        # GENERISIZE THIS
         lowerhist.set_xlabel('Pr("SMOOTH"|SMOOTH)')
 
         plt.hist(PL, bins=bins, histtype='stepfilled', color='blue', alpha=0.7)
