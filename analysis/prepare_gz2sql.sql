@@ -17,11 +17,53 @@
  * to reduce time on each query
  */
 
+USE gz2
 
+CREATE TABLE task1_expert AS (
+SELECT an.*, ex.user_id, ac.asset_id, a.name, a.external_ref
+FROM annotations as an
+     JOIN classifications as cl
+     	  ON cl.id = an.classification_id
+     JOIN expert_users as ex
+          ON ex.user_id = cl.user_id
+     JOIN asset_classifications as ac
+     	  ON ac.classification_id = cl.id
+     JOIN assets as a 
+     	  ON a.id = ac.asset_id
+WHERE an.task_id = 1 );
+
+/* Here's how I created task1_expert
+   ALL classifications from EVERY user who has classified at least ONE 
+   asset from the Expert sample 
+
+LOAD DATA INFILE 'expert_sample_for_mysql.csv' INTO TABLE expert_sample
+FIELDS TERMINATED BY ','
+LINES TERMMINATED BY '\n'
+IGNORE 1 LINES;
+
+GO
+
+SELECT DISTINCT cl.user_id INTO TABLE expert_users
+FROM asset_classications as ac
+JOIN expert_sample as ex
+     ON ex.asset_id = ac.asset_id
+JOIN classifications as cl
+     ON clid = ac.classification_id
+
+GO
+
+ALTER TABLE expert_users ADD PRIMARY KEY (id);
+
+GO
+
+/* Then run the final command above. [These previous commands were done 
+    on the command line.] */
+
+/**************************************************************************\
 
 /* This command creates the table required by SWAP.py by joining the relevant
    tables in the gz2 database to provide SWAP with the necessary information. 
-   Change the WHERE statement to select the task (filter) of interest. */
+   Change the WHERE statement to select the task (filter) of interest. 
 
 CREATE TABLE task3 AS (
 SELECT an.*, cl.user_id, ac.asset_id, a.name, a.external_ref
@@ -58,7 +100,7 @@ CREATE TABLE morphology (
 -------------------------------------------------------------------------
 1. LOADING DATA FROM FILE
    ** infile.csv seems to work well but you have to tell mysql about ","
-   ** there should NOT be a header row in the infile!
+   ** if there is a header, use IGNORE # LINES; 
    ** the table into which the data is to be loaded must already exist
    ** infile.csv needs to reside in /var/lib/mysql/db_name/
  

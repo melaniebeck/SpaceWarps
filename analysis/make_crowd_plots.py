@@ -90,12 +90,11 @@ def make_crowd_plots(argv):
           assert False, "unhandled option"
 
     # Check for pickles in array args:
-    if len(args) == 2:
-        bureau1_path = args[0]
-        bureau2_path = args[1]
-        print "make_crowd_plots: illustrating behaviour captured in bureau files: "
-        print "make_crowd_plots: ",bureau1_path
-        print "make_crowd_plots: ",bureau2_path
+    if len(args) >= 1:
+        paths = args
+        for path in paths:
+            print "make_crowd_plots: illustrating behaviour captured in ",
+            "bureau file %s"%path
     else:
         print make_crowd_plots.__doc__
         return
@@ -105,246 +104,316 @@ def make_crowd_plots(argv):
 
     # ------------------------------------------------------------------
 
-    # Read in bureau objects:
+    d={}
 
-    bureau1 = swap.read_pickle(bureau1_path, 'bureau')
-    bureau2 = swap.read_pickle(bureau2_path, 'bureau')
-    print "make_crowd_plots: stage 1, 2 agent numbers: ",len(bureau1.list()), len(bureau2.list())
+    # Read in bureau objects and summarize data:
+    for idx, bureau_path in enumerate(paths):
 
-    # make lists by going through agents
-    N_early = 10
+        # [SPACEWARPS ONLY] -- Stage 2 stuff dependent on Stage 1 stuff 
+        if idx == 1:
+            # stage 1 skill of stage 2 classifiers:
+            d['final_skill_oldagent'] = np.array([])
+            d['new_s2_contribution'] = np.array([])
+            d['new_s2_skill'] = np.array([])
+            d['new_s2_effort'] = np.array([])
+            d['new_s2_information'] = np.array([])
 
-    stage2_veteran_members = []
-    list1 = bureau1.list()
-    for ID in bureau2.list():
-        if ID in list1:
-            stage2_veteran_members.append(ID)
-    print "make_crowd_plots: ",len(stage2_veteran_members), " volunteers stayed on for Stage 2 from Stage 1"
+            bureau2 = swap.read_pickle(bureau_path,'bureau')
 
-    final_skill = []
-    contribution = []
-    experience = []
-    effort = []
-    information = []
-    early_skill = []
+            stage2_veteran_members = []
+            for ID in bureau2.list():
+                if ID in bureau.list():
+                    stage2_veteran_members.append(ID)
+                print "make_crowd_plots: ",len(stage2_veteran_members), \
+                    " volunteers stayed on for Stage 2 from Stage 1"
 
-    final_skill_all = []
-    contribution_all = []
-    experience_all = []
-    effort_all = []
-    information_all = []
+                oldagent = bureau.member[ID]
+                d['final_skill_oldagent'] = np.append(\
+                                        d['final_skill_oldagent'], 
+                                        oldagent.traininghistory['Skill'][-1])
 
-    for ID in bureau1.list():
-        agent = bureau1.member[ID]
-        final_skill_all.append(agent.traininghistory['Skill'][-1])
-        information_all.append(agent.testhistory['I'].sum())
-        effort_all.append(agent.N-agent.NT)
-        experience_all.append(agent.NT)
-        contribution_all.append(agent.testhistory['Skill'].sum()) #total integrated skill applied
-        if agent.NT < N_early:
-            continue
-
-        final_skill.append(agent.traininghistory['Skill'][-1])
-        information.append(agent.testhistory['I'].sum())
-        effort.append(agent.N-agent.NT)
-        experience.append(agent.NT)
-        early_skill.append(agent.traininghistory['Skill'][N_early])
-        contribution.append(agent.testhistory['Skill'].sum())
-
-    experience = np.array(experience)
-    effort = np.array(effort)
-    final_skill = np.array(final_skill)
-    contribution = np.array(contribution)
-    experience_all = np.array(experience_all)
-    effort_all = np.array(effort_all)
-    final_skill_all = np.array(final_skill_all)
-    contribution_all = np.array(contribution_all)
-    early_skill = np.array(early_skill)
-    contribution = np.array(contribution)
-    contribution_all = np.array(contribution_all)
-
-    print "make_crowd_plots: mean stage 1 volunteer effort = ",phr(np.mean(effort_all))
-    print "make_crowd_plots: mean stage 1 volunteer experience = ",phr(np.mean(experience_all))
-    print "make_crowd_plots: mean stage 1 volunteer contribution = ",phr(np.mean(contribution_all)),"bits"
-    print "make_crowd_plots: mean stage 1 volunteer skill = ",phr(np.mean(final_skill_all),ndp=2),"bits"
-
-    #same setup for stage 2, except special class is veteran volunteers rather than "experienced" volunteers
-
-    final_skill2 = []
-    contribution2 = []
-    experience2 = []
-    effort2 = []
-    information2 = []
-
-    # stage 1 skill of stage 2 classifiers:
-    final_skill1 = []
-
-    final_skill_all2 = []
-    contribution_all2 = []
-    experience_all2 = []
-    effort_all2 = []
-    information_all2 = []
-
-    new_s2_contribution = []
-    new_s2_skill = []
-    new_s2_effort = []
-    new_s2_information = []
-
-    for ID in bureau2.list():
-
-        agent = bureau2.member[ID]
-
-        final_skill_all2.append(agent.traininghistory['Skill'][-1])
-        information_all2.append(agent.testhistory['I'].sum())
-        effort_all2.append(agent.N-agent.NT)
-        experience_all2.append(agent.NT)
-        contribution_all2.append(agent.testhistory['Skill'].sum()) #total integrated skill applied
-        if agent.name not in stage2_veteran_members:
-            new_s2_contribution.append(agent.testhistory['Skill'].sum())
-            new_s2_skill.append(agent.traininghistory['Skill'][-1])
-            new_s2_effort.append(agent.N-agent.NT)
-            new_s2_information.append(agent.testhistory['I'].sum())
-            continue
-
-        contribution2.append(agent.testhistory['Skill'].sum())
-        final_skill2.append(agent.traininghistory['Skill'][-1])
-        effort2.append(agent.N-agent.NT)
-        information2.append(agent.testhistory['I'].sum())
-        experience2.append(agent.NT)
-
-        oldagent = bureau1.member[ID]
-        final_skill1.append(oldagent.traininghistory['Skill'][-1])
+                agent = bureau2.member[ID]
+                if agent.name not in stage2_veteran_members:
+                    d['new_s2_contribution']=np.append(d['new_s2_contribution'],
+                                            agent.testhistory['Skill'].sum())
+                    d['new_s2_skill'] = np.append(d['new_s2_skill'],
+                                            agent.traininghistory['Skill'][-1])
+                    d['new_s2_effort'] = np.append(d['new_s2_effort'], 
+                                            agent.N-agent.NT)
+                    d['new_s2_information'] = np.append(d['new_s2_information'],
+                                            agent.testhistory['I'].sum())
 
 
-    experience2 = np.array(experience2)
-    effort2 = np.array(effort2)
-    final_skill2 = np.array(final_skill2)
-    contribution2 = np.array(contribution2)
-    information2 = np.array(information2)
 
-    experience_all2 = np.array(experience_all2)
-    effort_all2 = np.array(effort_all2)
-    final_skill_all2 = np.array(final_skill_all2)
-    contribution_all2 = np.array(contribution_all2)
-    information_all2 = np.array(information_all2)
+        # Initialize the dictionary with arrays for this bureau
+        d["final_skill{0}".format(idx+1)] = np.array([]),
+        d["contribution{0}".format(idx+1)] = np.array([]),
+        d["experience{0}".format(idx+1)] = np.array([]),
+        d["effort{0}".format(idx+1)] = np.array([]),
+        d["information{0}".format(idx+1)] = np.array([]),
+        d["early_skill{0}".format(idx+1)] = np.array([]),
+        d["final_skill_all{0}".format(idx+1)] = np.array([]),
+        d["contribution_all{0}".format(idx+1)] = np.array([]),
+        d["experience_all{0}".format(idx+1)] = np.array([]),
+        d["effort_all{0}".format(idx+1)] = np.array([]),
+        d["information_all{0}".format(idx+1)] = np.array([])
 
-    new_s2_contribution = np.array(new_s2_contribution)
-    new_s2_skill = np.array(new_s2_skill)
-    new_s2_effort = np.array(new_s2_effort)
-    new_s2_information = np.array(new_s2_information)
+        # Open the bureau
+        bureau = swap.read_pickle(bureau_path, 'bureau')
+        print "make_crowd_plots: agent numbers for %s: %i"%(bureau_path, 
+                                                            len(bureau.list()))
+        
+        # make lists by going through agents
+        N_early = 10
+        
+        # Populate the bureau data dictionary with summary stats
+        for ID in bureau.list():
+            agent = bureau.member[ID]
+            
+            d['final_skill_all{0}'.format(idx+1)] = \
+                            np.append(d['final_skill_all{0}'.format(idx+1)], 
+                                      agent.traininghistory['Skill'][-1])
+            d['information_all{0}'.format(idx+1)] = \
+                            np.append(d['information_all{0}'.format(idx+1)], 
+                                      agent.testhistory['I'].sum())
+            d['effort_all{0}'.format(idx+1)] = \
+                            np.append(d['effort_all{0}'.format(idx+1)], 
+                                        append(agent.N-agent.NT))
+            d['experience_all{0}'.format(idx+1)] = \
+                            np.append(d['experience_all{0}'.format(idx+1)], 
+                                      agent.NT)
+            d['contribution_all{0}'.format(idx+1)] = \
+                            np.append(d['contribution_all{0}'.format(idx+1)], 
+                                        agent.testhistory['Skill'].sum())
 
-    print "make_crowd_plots: mean stage 2 volunteer effort = ",phr(np.mean(effort_all2))
-    print "make_crowd_plots: mean stage 2 volunteer experience = ",phr(np.mean(experience_all2))
-    print "make_crowd_plots: mean stage 2 volunteer contribution = ",phr(np.mean(contribution_all2)),"bits"
-    print "make_crowd_plots: mean stage 2 volunteer skill = ",phr(np.mean(final_skill_all2),ndp=2),"bits"
 
-    # ------------------------------------------------------------------
+            if agent.NT > N_early:
+                continue
 
+            d['final_skill{0}'.format(idx+1)] = \
+                                np.append(d['final_skill{0}'.format(idx+1)], 
+                                          agent.traininghistory['Skill'][-1])
+            d['information{0}'.format(idx+1)] = \
+                                np.append(d['information{0}'.format(idx+1)], 
+                                          agent.testhistory['I'].sum())
+            d['effort{0}'.format(idx+1)] = \
+                                np.append(d['effort{0}'.format(idx+1)], 
+                                          agent.N-agent.NT)
+            d['experience{0}'.format(idx+1)] = \
+                                np.append(d['experience{0}'.format(idx+1)], 
+                                          agent.NT)
+            d['early_skill{0}'.format(idx+1)] = \
+                                np.append(d['early_skill{0}'.format(idx+1)], 
+                                        agent.traininghistory['Skill'][N_early])
+            d['contribution{0}'.format(idx+1)] = \
+                                np.append(d['contribution{0}'.format(idx+1)], 
+                                          agent.testhistory['Skill'].sum())
+
+
+        # Report
+        print "make_crowd_plots: mean stage 1 volunteer effort = ",\
+            phr(np.mean(d['effort_all{0}'.format(idx+1)]))
+        print "make_crowd_plots: mean stage 1 volunteer experience = ",\
+            phr(np.mean(d['experience_all{0}'.format(idx+1)]))
+        print "make_crowd_plots: mean stage 1 volunteer contribution = ",\
+            phr(np.mean(d['contribution_all{0}'.format(idx+1)])),"bits"
+        print "make_crowd_plots: mean stage 1 volunteer skill = ",\
+            phr(np.mean(d['final_skill_all{0}'.format(idx+1)]),ndp=2),"bits"
+
+
+    ######################################################################
+
+
+    ######################################################################
     # Plot 1.1 and 1.2: cumulative distributions of contribution and skill
-
+    ######################################################################
+    
+    #-------------------------
     # 1.1 Contribution
+    #-------------------------
 
     plt.figure(figsize=(10,8),dpi=100)
 
     # All Stage 1 volunteers:
-    cumulativecontribution1_all = np.cumsum(np.sort(contribution_all)[::-1])
+    # --------------------------------------------------------------------
+    cumulativecontribution1_all = \
+                            np.cumsum(np.sort(d['contribution_all1'])[::-1])
     totalcontribution1_all = cumulativecontribution1_all[-1]
     Nv1_all = len(cumulativecontribution1_all)
+
+    print "make_crowd_plots: %i stage 1 volunteers contributed %.2f bits"\
+        %(Nv1_all, phr(totalcontribution1_all))
+
     # Fraction of total contribution, fraction of volunteers:
     cfrac1_all = cumulativecontribution1_all / totalcontribution1_all
     vfrac1_all = np.arange(Nv1_all) / float(Nv1_all)
-    plt.plot(vfrac1_all, cfrac1_all, '-b', linewidth=4, label='CFHTLS Stage 1: All Volunteers')
-    print "make_crowd_plots: ",Nv1_all,"stage 1 volunteers contributed",phr(totalcontribution1_all),"bits"
-    index = np.where(cfrac1_all > 0.9)[0][0]
-    print "make_crowd_plots: ",phr(100*vfrac1_all[index]),"% of the volunteers -",int(Nv1_all*vfrac1_all[index]),"people - contributed 90% of the information at Stage 1"
 
-    print "make_crowd_plots: total amount of information generated at stage 1 = ",phr(np.sum(information_all)),"bits"
+    index = np.where(cfrac1_all > 0.9)[0][0]
+
+    print "make_crowd_plots: %.2f% of the volunteers -%i people - ",\
+        "contributed 90% of the information at Stage 1"\
+        %(phr(100*vfrac1_all[index]), int(Nv1_all*vfrac1_all[index]))
+
+    print "make_crowd_plots: total amount of information generated at ",\
+        "stage 1: %.2f bits"%phr(np.sum(information_all))
+
+
+    # plot fractions...
+    plt.plot(vfrac1_all, cfrac1_all, '-b', linewidth=4, 
+             label='CFHTLS Stage 1: All Volunteers')
+
 
     # Experienced Stage 1 volunteers (normalize to all!):
-    cumulativecontribution1 = np.cumsum(np.sort(contribution)[::-1])
+    # --------------------------------------------------------------------
+    cumulativecontribution1 = np.cumsum(np.sort(d['contribution1'])[::-1])
     totalcontribution1 = cumulativecontribution1[-1]
     Nv1 = len(cumulativecontribution1)
-    # Fraction of total contribution (from experienced volunteers), fraction of (experienced) volunteers:
+
+    print "make_crowd_plots: %i experienced stage 1 volunteers contributed ",\
+        "%.2f bits"%(Nv1, phr(totalcontribution1))
+
+    # Fraction of total contribution (from experienced volunteers), 
+    # fraction of (experienced) volunteers:
     cfrac1 = cumulativecontribution1 / totalcontribution1_all
     vfrac1 = np.arange(Nv1) / float(Nv1)
-    plt.plot(vfrac1, cfrac1, '--b', linewidth=4, label='CFHTLS Stage 1: Experienced Volunteers')
-    print "make_crowd_plots: ",Nv1,"experienced stage 1 volunteers contributed",phr(totalcontribution1),"bits"
+
     index = np.where(cfrac1 > 0.9)[0][0]
-    print "make_crowd_plots: ",phr(100*vfrac1[index]),"% of the experienced volunteers -",int(Nv1*vfrac1[index]),"people - contributed 90% of the information at Stage 1"
 
-    # All Stage 2 volunteers:
-    cumulativecontribution2_all = np.cumsum(np.sort(contribution_all2)[::-1])
-    totalcontribution2_all = cumulativecontribution2_all[-1]
-    Nv2_all = len(cumulativecontribution2_all)
-    # Fraction of total contribution, fraction of volunteers:
-    cfrac2_all = cumulativecontribution2_all / totalcontribution2_all
-    vfrac2_all = np.arange(Nv2_all) / float(Nv2_all)
-    plt.plot(vfrac2_all, cfrac2_all, '#FF8000', linewidth=4, label='CFHTLS Stage 2: All Volunteers')
-    print "make_crowd_plots: ",Nv2_all,"stage 2 volunteers contributed",phr(totalcontribution2_all),"bits"
-    index = np.where(cfrac2_all > 0.9)[0][0]
-    print "make_crowd_plots: ",phr(100*vfrac2_all[index]),"% of the volunteers -",int(Nv2_all*vfrac2_all[index]),"people - contributed 90% of the information at Stage 2"
+    print "make_crowd_plots: %.2f% of the experienced volunteers - %i ",\
+        "people - contributed 90% of the information at Stage 1"\
+        %(phr(100*vfrac1[index]), int(Nv1*vfrac1[index]))
 
-    print "make_crowd_plots: total amount of information generated at stage 2 = ",phr(np.sum(information_all2)),"bits"
+    # plot experienced fractions... 
+    plt.plot(vfrac1, cfrac1, '--b', linewidth=4, 
+             label='CFHTLS Stage 1: Experienced Volunteers')
+
+
+    # [SPACEWARPS ONLY] All Stage 2 volunteers:
+    # --------------------------------------------------------------------
+    if idx >= 1:
+        cumulativecontribution2_all = \
+                            np.cumsum(np.sort(d['contribution_all2'])[::-1])
+        totalcontribution2_all = cumulativecontribution2_all[-1]
+        Nv2_all = len(cumulativecontribution2_all)
+
+        print "make_crowd_plots: %i stage 2 volunteers contributed %.2f bits"\
+            %(Nv2_all, phr(totalcontribution2_all))
+
+        # Fraction of total contribution, fraction of volunteers:
+        cfrac2_all = cumulativecontribution2_all / totalcontribution2_all
+        vfrac2_all = np.arange(Nv2_all) / float(Nv2_all)
+
+        index = np.where(cfrac2_all > 0.9)[0][0]
+
+        print "make_crowd_plots: %.2f% of the volunteers - %i people - ",\
+            "contributed 90% of the information at Stage 2"\
+            %(phr(100*vfrac2_all[index]), int(Nv2_all*vfrac2_all[index]))
+        
+        print "make_crowd_plots: total amount of information generated at ",\
+            "stage 2 = %.2f bits"%phr(np.sum(information_all2)),
+
+        # plot stage 2 fractions...
+        plt.plot(vfrac2_all, cfrac2_all, '#FF8000', linewidth=4, 
+                 label='CFHTLS Stage 2: All Volunteers')
+
 
     plt.xlabel('Fraction of Volunteers')
     plt.ylabel('Fraction of Total Contribution')
     plt.xlim(0.0, 0.21)
     plt.ylim(0.0, 1.0)
     plt.legend(loc='lower right')
-    # pngfile = output_directory+'crowd_contrib_cumul.png'
-    pngfile = output_directory+'crowd_contrib_cumul.pdf'
+
+    pngfile = output_directory+'crowd_contrib_cumul.png'
     plt.savefig(pngfile, bbox_inches='tight')
+    plt.close()
     print "make_crowd_plots: cumulative contribution plot saved to "+pngfile
 
 
+    #-----------------------
     # 1.2 Skill
+    #-----------------------
 
     plt.figure(figsize=(10,8),dpi=100)
 
     # All Stage 1 volunteers:
-    cumulativeskill1_all = np.cumsum(np.sort(final_skill_all)[::-1])
+    #---------------------------------------------------------------------
+    cumulativeskill1_all = np.cumsum(np.sort(d['final_skill_all1'])[::-1])
     totalskill1_all = cumulativeskill1_all[-1]
     Nv1_all = len(cumulativeskill1_all)
+
+    print "make_crowd_plots: %i stage 1 volunteers possess %.2f bits worth ",\
+        "of skill"%(Nv1_all,phr(totalskill1_all))
+
     # Fraction of total skill, fraction of volunteers:
     cfrac1_all = cumulativeskill1_all / totalskill1_all
     vfrac1_all = np.arange(Nv1_all) / float(Nv1_all)
-    plt.plot(vfrac1_all, cfrac1_all, '-b', linewidth=4, label='CFHTLS Stage 1: All Volunteers')
-    print "make_crowd_plots: ",Nv1_all,"stage 1 volunteers possess",phr(totalskill1_all),"bits worth of skill"
+
     index = np.where(vfrac1_all > 0.2)[0][0]
-    print "make_crowd_plots: ",phr(100*cfrac1_all[index]),"% of the skill possessed by the (20%) most skilled",int(Nv1_all*vfrac1_all[index]),"people"
+
+    print "make_crowd_plots: %.2f% of the skill possessed by the (20%) most ",\
+        "skilled %i people"%(phr(100*cfrac1_all[index]),
+                             int(Nv1_all*vfrac1_all[index]))
+
+    plt.plot(vfrac1_all, cfrac1_all, '-b', linewidth=4, 
+             label='CFHTLS Stage 1: All Volunteers')
+
 
     # Experienced Stage 1 volunteers (normalize to all!):
-    cumulativeskill1 = np.cumsum(np.sort(final_skill)[::-1])
+    #---------------------------------------------------------------------
+    cumulativeskill1 = np.cumsum(np.sort(d['final_skill1'])[::-1])
     totalskill1 = cumulativeskill1[-1]
     Nv1 = len(cumulativeskill1)
-    # Fraction of total skill (from experienced volunteers), fraction of (experienced) volunteers:
+
+    print "make_crowd_plots: %i experienced stage 1 volunteers possess ",\
+        "%.2f bits worth of skill"%(Nv1,phr(totalskill1))
+
+    # Fraction of total skill (from experienced volunteers), 
+    # fraction of (experienced) volunteers:
     cfrac1 = cumulativeskill1 / totalskill1_all
     vfrac1 = np.arange(Nv1) / float(Nv1)
-    plt.plot(vfrac1, cfrac1, '--b', linewidth=4, label='CFHTLS Stage 1: Experienced Volunteers')
-    print "make_crowd_plots: ",Nv1,"experienced stage 1 volunteers possess",phr(totalskill1),"bits worth of skill"
+
     index = np.where(vfrac1 > 0.2)[0][0]
-    print "make_crowd_plots: ",phr(100*cfrac1[index]),"% of the skill possessed by the (20%) most skilled",int(Nv1*vfrac1[index]),"people"
 
-    # All Stage 2 volunteers:
-    cumulativeskill2_all = np.cumsum(np.sort(final_skill_all2)[::-1])
-    totalskill2_all = cumulativeskill2_all[-1]
-    Nv2_all = len(cumulativeskill2_all)
-    # Fraction of total skill, fraction of volunteers:
-    cfrac2_all = cumulativeskill2_all / totalskill2_all
-    vfrac2_all = np.arange(Nv2_all) / float(Nv2_all)
-    plt.plot(vfrac2_all, cfrac2_all, '#FF8000', linewidth=4, label='CFHTLS Stage 2: All Volunteers')
-    print "make_crowd_plots: ",Nv2_all,"stage 2 volunteers possess",phr(totalskill2_all),"bits worth of skill"
-    index = np.where(vfrac2_all > 0.2)[0][0]
-    print "make_crowd_plots: ",phr(100*cfrac2_all[index]),"% of the skill possessed by the (20%) most skilled",int(Nv2_all*vfrac2_all[index]),"people"
+    print "make_crowd_plots: %.2f% of the skill possessed by the (20%) ",\
+        "most skilled %i people"%(phr(100*cfrac1[index]),int(Nv1*vfrac1[index]))
 
+    plt.plot(vfrac1, cfrac1, '--b', linewidth=4, 
+             label='CFHTLS Stage 1: Experienced Volunteers')
+
+
+    # [SPACEWARPS ONLY] All Stage 2 volunteers:
+    #---------------------------------------------------------------------
+    if idx >= 1:
+        cumulativeskill2_all = np.cumsum(np.sort(d['final_skill_all2'])[::-1])
+        totalskill2_all = cumulativeskill2_all[-1]
+        Nv2_all = len(cumulativeskill2_all)
+        
+        print "make_crowd_plots: %i stage 2 volunteers possess %.2f bits ",\
+            "worth of skill"%(Nv2_all,phr(totalskill2_all))
+        
+        # Fraction of total skill, fraction of volunteers:
+        cfrac2_all = cumulativeskill2_all / totalskill2_all
+        vfrac2_all = np.arange(Nv2_all) / float(Nv2_all)
+        
+        index = np.where(vfrac2_all > 0.2)[0][0]
+        
+        print "make_crowd_plots: %.2f% of the skill possessed by the (20%) ",\
+            "most skilled %i people"%(phr(100*cfrac2_all[index]),
+                                      int(Nv2_all*vfrac2_all[index]))
+        
+        
+        plt.plot(vfrac2_all, cfrac2_all, '#FF8000', linewidth=4, 
+                 label='CFHTLS Stage 2: All Volunteers')
+        
     plt.xlabel('Fraction of Volunteers')
     plt.ylabel('Fraction of Total Skill')
     plt.xlim(0.0, 0.21)
     plt.ylim(0.0, 1.0)
     plt.legend(loc='upper left')
-    # pngfile = output_directory+'crowd_skill_cumul.png'
-    pngfile = output_directory+'crowd_skill_cumul.pdf'
+
+    pngfile = output_directory+'crowd_skill_cumul.png'
     plt.savefig(pngfile, bbox_inches='tight')
+    plt.close()
     print "make_crowd_plots: cumulative skill plot saved to "+pngfile
 
 
@@ -380,48 +449,69 @@ def make_crowd_plots(argv):
 
     # ------------------------------------------------------------------
 
-    # Plot #3: corner plot for 5 variables of interest; stage1 = blue shaded, stage2 = orange outlines.
+    # Plot #3: corner plot for 5 variables of interest; 
+    # stage1 = blue shaded 
+    # stage2 = orange outlines.
 
-    X = np.vstack((effort_all, experience_all, final_skill_all, contribution_all, information_all)).T
+    X = np.vstack((d['effort_all1'], 
+                   d['experience_all1'], 
+                   d['final_skill_all1'], 
+                   d['contribution_all1'], 
+                   d['information_all1'])).T
 
     pos_filter = True
+
     for Xi in X.T:
         pos_filter *= Xi > 0
     pos_filter *= final_skill_all > 1e-7
     pos_filter *= contribution_all > 1e-11
     X = np.log10(X[pos_filter])
 
-    comment = 'log(Effort), log(Experience),log(Skill), log(Contribution), log(Information)\n{0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}'.format(X[:, 0].min(), X[:, 0].max(),
-                                                                                                                                    X[:, 1].min(), X[:, 1].max(),
-                                                                                                                                    X[:, 2].min(), X[:, 2].max(),
-                                                                                                                                    X[:, 3].min(), X[:, 3].max(),
-                                                                                                                                    X[:, 4].min(), X[:, 4].max(),)
+    comment = 'log(Effort), log(Experience), log(Skill), log(Contribution), ',\
+              'log(Information)\n{0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8},',\
+              '{9}'.format(X[:, 0].min(), X[:, 0].max(),
+                           X[:, 1].min(), X[:, 1].max(),
+                           X[:, 2].min(), X[:, 2].max(),
+                           X[:, 3].min(), X[:, 3].max(),
+                           X[:, 4].min(), X[:, 4].max(),)
+
     np.savetxt(output_directory+'volunteer_analysis1.cpt', X, header=comment)
 
-    X = np.vstack((effort_all2, experience_all2, final_skill_all2, contribution_all2, information_all2)).T
-
-    pos_filter = True
-    for Xi in X.T:
-        pos_filter *= Xi > 0
-    pos_filter *= final_skill_all2 > 1e-7
-    pos_filter *= contribution_all2 > 1e-11
-    X = np.log10(X[pos_filter])
-
-    np.savetxt(output_directory+'volunteer_analysis2.cpt', X, header=comment)
-
-    # pngfile = output_directory+'all_skill_contribution_experience_education.png'
-    pngfile = output_directory+'all_skill_contribution_experience_education.pdf'
-
     input1 = output_directory+'volunteer_analysis1.cpt,blue,shaded'
-    input2 = output_directory+'volunteer_analysis2.cpt,orange,shaded'
+
+
+    # [SPACEWARPS ONLY]
+    #-------------------------------------------------------------------------
+    if idx >= 1:
+        X = np.vstack((d['effort_all2'],
+                       d['experience_all2'], 
+                       d['final_skill_all2'], 
+                       d['contribution_all2'], 
+                       d['information_all2'])).T
+
+        pos_filter = True
+        for Xi in X.T:
+            pos_filter *= Xi > 0
+        pos_filter *= final_skill_all2 > 1e-7
+        pos_filter *= contribution_all2 > 1e-11
+        X = np.log10(X[pos_filter])
+
+        np.savetxt(output_directory+'volunteer_analysis2.cpt', X, 
+                   header=comment)
+        input2 = output_directory+'volunteer_analysis2.cpt,orange,shaded'
+
+
+    pngfile = output_directory+'all_skill_contribution_experience_education.png'
 
     # call([cornerplotter_path,'-o',pngfile,input1,input2])
     call([cornerplotter_path,'-o',pngfile,input1])
 
     print "make_crowd_plots: corner plot saved to "+pngfile
 
+    """
+    #-------------------------------------------------------------------
+    # [SPACEWARPS ONLY]
     # ------------------------------------------------------------------
-
     # Plot #4: stage 2 -- new volunteers vs. veterans: contribution.
 
     # PJM: updated 2014-09-03 to show stage 1 vs 2 skill, point size shows effort.
@@ -484,6 +574,7 @@ def make_crowd_plots(argv):
     # ------------------------------------------------------------------
 
     print "make_crowd_plots: all done!"
+    """
 
     return
 

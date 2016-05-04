@@ -52,17 +52,17 @@ class MySQLdb(object):
 
         if word == 'since':
             # GENERISIZE THIS
-            query = ("select * from task1_full as t "
+            query = ("select * from task1_expert as t "
                      "where t.created_at > '%s'"%str(t))
             self.cur1.execute(query)
 
         elif word == 'before':
-            query = ("select * from task1_full as t "
+            query = ("select * from task1_expert as t "
                      "and t.created_at < '%s'"%str(t))
             self.cur1.execute(query)
 
         elif word == 'between':
-            query = ("select * from task1_full as t "
+            query = ("select * from task1_expert as t "
                 "where t.created_at between '%s' and '%s'"%(str(t), str(t2)))
             self.cur1.execute(query)
 
@@ -113,6 +113,7 @@ class MySQLdb(object):
         # No longer need to have the breakdown of Nair classification! 
         # These have been taken care of when building the metadata file
         # Use the Expert_Label if available; otherwise use Nair_label?
+        # 5-4-26 Only use Epert labels now (using task1_expert table)
         if subject['Expert_label']!=-1:
             category = 'training'
             if subject['Expert_label']==0:
@@ -123,7 +124,13 @@ class MySQLdb(object):
                 flavor='dud'
                 kind='dud'
                 truth='NOT'
+        else:                 
+            category = 'test'
+            kind = 'test'
+            flavor = 'test'
+            truth = 'UNKNOWN'
 
+        """
         elif subject['Nair_label']!=-1:
             category = 'training'
             if subject['Nair_label']==0:
@@ -134,11 +141,7 @@ class MySQLdb(object):
                 flavor='dud'
                 kind='dud'
                 truth='NOT'
-        else:                 
-            category = 'test'
-            kind = 'test'
-            flavor = 'test'
-            truth = 'UNKNOWN'
+        """
 
 
         items = t, str(Name), str(ID), str(ZooID), category, kind, flavor,\

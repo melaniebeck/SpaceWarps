@@ -305,22 +305,22 @@ def SWAP(argv):
 
         P = sample.member[ID].mean_probability
 
-        # MAKE THIS OPTIONAL IN CASE NO MACHINE
+        if machine:
         #-------------------------------------------------------------------
         #                  UPDATE THE METADATA FILE FOR ML
         #-------------------------------------------------------------------
         # If the subject has crossed either rejection/detection threshold
         # flip that subject's MLsample value from Test to Train in metadata
-        if (sample.member[ID].status != 'undecided') or \
-           (sample.member[ID].state == 'inactive'):
-            new_subject = subjects[int(ID)-1]
-            new_subjects['SWAP_prob'] = P
+            if (sample.member[ID].status != 'undecided') or \
+               (sample.member[ID].state == 'inactive'):
+                new_subject = subjects[int(ID)-1]
+                new_subjects['SWAP_prob'] = P
 
-            if new_subject['MLsample'] == 'test':
-                subjects['MLsample'][int(ID)-1] = 'train'
-                print "====================================================="
-                print "=======  TRAINING SAMPLE HAS A NEW MEMBER!!!  ======="
-                print "ID: ",ID," LABEL:",P
+                if new_subject['MLsample'] == 'test':
+                    subjects['MLsample'][int(ID)-1] = 'train'
+                    print "=================================================="
+                    print "======  TRAINING SAMPLE HAS A NEW MEMBER!!!  ====="
+                    print "ID: ",ID," LABEL:",P
 
         #-------------------------------------------------------------------
         #                 UPDATE AGENT'S CONFUSION MATRIX
@@ -529,6 +529,7 @@ def SWAP(argv):
         print "SWAP: saving metadata to "+metadatafile
         swap.write_pickle(subjects,metadatafile)
         tonights.parameters['metadatafile'] = metadatafile
+
 
     # ------------------------------------------------------------------
     # If there is more to do we need to update the config file for the next day

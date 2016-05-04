@@ -113,6 +113,9 @@ def MachineClassifier(options, args):
                   'weights':('uniform','distance')}
         
         # Create the model 
+        # for "estimator=XXX" all you need is an instance of a machine -- 
+        # any scikit-learn machine will do. HOwever, non-sklearn machines....
+        # That will be a bit trickier! (i.e. Phil's conv-nets)
         general_model = GridSearchCV(estimator=KNC(), param_grid=params,
                                      error_score=0, scoring=metric)        
 

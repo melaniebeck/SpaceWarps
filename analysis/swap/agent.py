@@ -105,6 +105,7 @@ class Agent(object):
         self.NT = 0
         # back-compatibility:
         self.contribution = 0.0*self.update_skill() # This call also sets self.skill, internally
+
         self.traininghistory = {'ID':np.array([]),
                                 'Skill':np.array([self.skill]),
                                 'PL':np.array([self.PL]),
@@ -211,7 +212,7 @@ class Agent(object):
                 # self.NT == 0 if unsupervised? Not sure. Maybe better to count
                 # every image 
                 # as training when unsupervised... Bit odd though.
-                self.NT += 1
+                # self.NT += 1
 
             else:
                 raise Exception("Apparently, the subject was actually a "+
