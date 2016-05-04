@@ -117,7 +117,7 @@ def MachineClassifier(options, args):
         # any scikit-learn machine will do. HOwever, non-sklearn machines....
         # That will be a bit trickier! (i.e. Phil's conv-nets)
         general_model = GridSearchCV(estimator=KNC(), param_grid=params,
-                                     error_score=0, scoring=metric)        
+                                     error_score=0, scoring=metric, cv=5) 
 
         # Train the model -- k-fold cross validation is embedded
         trained_model = general_model.fit(train_features, train_labels)

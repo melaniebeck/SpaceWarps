@@ -305,12 +305,19 @@ def SWAP(argv):
 
         P = sample.member[ID].mean_probability
 
-        if machine:
-        #-------------------------------------------------------------------
-        #                  UPDATE THE METADATA FILE FOR ML
-        #-------------------------------------------------------------------
-        # If the subject has crossed either rejection/detection threshold
-        # flip that subject's MLsample value from Test to Train in metadata
+        if machine:            
+            #----------------------------------------------------------------
+            #                UPDATE THE METADATA FILE FOR ML
+            #----------------------------------------------------------------
+            # Method1: EVERYTHING humans see -- the machine sees
+            new_subject = subjects[int(ID)-1]
+            new_subject['SWAP_prob'] = P
+            new_subject['MLsample'] = 'train'
+
+            # Method2: Machine only sees subjects which have crossed 
+            #          rejected/accepted thresholds; and expert sample
+            #          are treated as validation only! 
+            """
             if (sample.member[ID].status != 'undecided') or \
                (sample.member[ID].state == 'inactive'):
                 new_subject = subjects[int(ID)-1]
@@ -318,9 +325,7 @@ def SWAP(argv):
 
                 if new_subject['MLsample'] == 'test':
                     subjects['MLsample'][int(ID)-1] = 'train'
-                    print "=================================================="
-                    print "======  TRAINING SAMPLE HAS A NEW MEMBER!!!  ====="
-                    print "ID: ",ID," LABEL:",P
+            """
 
         #-------------------------------------------------------------------
         #                 UPDATE AGENT'S CONFUSION MATRIX
