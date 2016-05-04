@@ -302,6 +302,7 @@ def write_config(filename, pars):
                  'offline',
                  'prior',
                  'machine',
+                 'training_sample',
                  'machine_threshold',
                  'evaluation_metrics',
                  'evaluation_criteria'

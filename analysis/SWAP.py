@@ -237,6 +237,13 @@ def SWAP(argv):
     try: machine = tonights.parameters['machine']
     except: machine = False
     print "SWAP: running MachineClassifier.py after this run?",machine
+    
+    # If we are doing ML, are we sending ALL subjects or just those which are
+    # 'best' classified by our users (cross one of the thresholds)? 
+    if machine:
+        try: training_sample = tonights.parameters['training_sample']
+        except: training_sample = None
+        print "SWAP: will pass %s training subjects to machine"%training_sample
 
     # ------------------------------------------------------------------
     # Read in, or create, a bureau of agents who will represent the
@@ -310,22 +317,22 @@ def SWAP(argv):
             #                UPDATE THE METADATA FILE FOR ML
             #----------------------------------------------------------------
             # Method1: EVERYTHING humans see -- the machine sees
-            new_subject = subjects[int(ID)-1]
-            new_subject['SWAP_prob'] = P
-            new_subject['MLsample'] = 'train'
-
+            if training_sample in ['all','All','ALL']:
+                new_subject = subjects[int(ID)-1]
+                new_subject['SWAP_prob'] = P
+                new_subject['MLsample'] = 'train'
+                
             # Method2: Machine only sees subjects which have crossed 
             #          rejected/accepted thresholds; and expert sample
             #          are treated as validation only! 
-            """
-            if (sample.member[ID].status != 'undecided') or \
-               (sample.member[ID].state == 'inactive'):
-                new_subject = subjects[int(ID)-1]
-                new_subjects['SWAP_prob'] = P
+            if training_sample in ['best','Best','BEST']:
+                if (sample.member[ID].status != 'undecided') or \
+                   (sample.member[ID].state == 'inactive'):
+                    new_subject = subjects[int(ID)-1]
+                    new_subjects['SWAP_prob'] = P
 
-                if new_subject['MLsample'] == 'test':
-                    subjects['MLsample'][int(ID)-1] = 'train'
-            """
+                    if new_subject['MLsample'] == 'test':
+                        subjects['MLsample'][int(ID)-1] = 'train'
 
         #-------------------------------------------------------------------
         #                 UPDATE AGENT'S CONFUSION MATRIX

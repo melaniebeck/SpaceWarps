@@ -45,6 +45,7 @@ def MachineClassifier(options, args):
 
     # Get the machine threshold (make retirement decisions)
     threshold = tonights.parameters['machine_threshold']
+    prior = tonights.parameters['prior']
 
     # Get list of evaluation metrics and criteria   
     eval_metrics = tonights.parameters['evaluation_metrics']
@@ -77,7 +78,7 @@ def MachineClassifier(options, args):
     # IDENTIFY TRAINING SAMPLE
     train_sample = subjects[subjects['MLsample']=='train']
     train_meta, train_features = ml.extract_training(train_sample)
-    train_labels = np.array([1 if p > 0.3 else 0 \
+    train_labels = np.array([1 if p > prior else 0 \
                              for p in train_meta['SWAP_prob']])
 
     # IDENTIFY VALIDATION SAMPLE (FINAL) 
