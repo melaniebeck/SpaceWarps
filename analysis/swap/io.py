@@ -268,49 +268,10 @@ def write_config(filename, pars):
     """
     F.write(header)
 
-    shortlist = ['survey', 
-                 'start', 
-                 'end', 
-                 'increment',
-                 'bureaufile', 
-                 'samplefile', 
-                 'metadatafile',
-                 'MLsamplefile',
-                 'MLbureaufile',
-                 'stage', 
-                 'verbose', 
-                 'one_by_one', 
-                 'report', 
-                 'plot', 
-                 'trunk',
-                 'dir',
-                 'repickle', 
-                 'supervised', 
-                 'supervised_and_unsupervised',
-                 'initialPL', 
-                 'initialPD', 
-                 'agents_willing_to_learn',
-                 'a_few_at_the_start',
-                 'N_per_batch', 
-                 'hasty', 
-                 'skepticism', 
-                 'use_marker_positions', 
-                 'detection_threshold', 
-                 'rejection_threshold',
-                 'random_file', 
-                 'dbspecies',
-                 'offline',
-                 'prior',
-                 'machine',
-                 'training_sample',
-                 'machine_threshold',
-                 'evaluation_metrics',
-                 'evaluation_criteria'
-                 ]
-
-    for keyword in shortlist:
+    for k,v in pars.iteritems():
         F.write('\n')
-        F.write('%s: %s\n' % (keyword,str(pars[keyword])))
+        F.write('%s: %s\n'%(k,v))
+
 
     F.write('\n')
     footer = '# ======================================================================'

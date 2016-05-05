@@ -1,3 +1,5 @@
+from __future__ import division
+
 from sklearn.cross_validation import KFold
 from sklearn.pipeline import Pipeline
 from sklearn.grid_search import GridSearchCV
@@ -49,6 +51,9 @@ def MachineClassifier(options, args):
 
     # Get list of evaluation metrics and criteria   
     eval_metrics = tonights.parameters['evaluation_metrics']
+    
+    # How much cross-validation should we do? 
+    cv = tonights.parameters['cross_validation']
 
     survey = tonights.parameters['survey']
     subdir = 'sup_run4'
@@ -86,48 +91,59 @@ def MachineClassifier(options, args):
     valid_meta, valid_features = ml.extract_training(valid_sample)
     valid_labels = valid_meta['Expert_label'].filled()
 
-    #if len(train_sample) >= 100: 
-    # TO DO: LOOP THROUGH DIFFERENT MACHINES? HOW MANY MACHINES?
-    for metric in eval_metrics:
+    # Require a minimum size training sample [Be reasonable, my good man!]
+    if len(train_sample) >= 100: 
+
+        # TO DO: LOOP THROUGH DIFFERENT MACHINES? HOW MANY MACHINES?
+
+        # Machine can be trained to maximize/minimize different metrics
+        # (ACC, completeness, purity, etc. Have a list of acceptable ones.)
+        # Minimize a Loss function (KNC doesn't have a loss fcn). 
+        for metric in eval_metrics:
         
-        # REGISTER Machine Classifier
-        # Construct machine name --> Machine+Metric? For now: KNC
-        machine = 'KNC'
-        Name = machine+'_'+metric
+            # REGISTER Machine Classifier
+            # Construct machine name --> Machine+Metric? For now: KNC
+            machine = 'KNC'
+            Name = machine+'_'+metric
         
-        # register an Agent for this Machine
-        try: 
-            test = MLbureau.member[Name]
-        except: 
-            MLbureau.member[Name] = swap.Agent_ML(Name, metric)
+            # register an Agent for this Machine
+            # This "Agent" doesn't behave like a SW agent... at least not yet
+            try: 
+                test = MLbureau.member[Name]
+            except: 
+                MLbureau.member[Name] = swap.Agent_ML(Name, metric)
+                
+
+            #---------------------------------------------------------------    
+            #     TRAIN THE MACHINE; EVALUATE ON VALIDATION SAMPLE
+            #---------------------------------------------------------------
+
+            # Now we run the machine -- need cross validation on whatever size 
+            # training sample we have .. 
+        
+            # Fixed until we build in other machine options
+            # Need to dynamically determine appropriate parameters...
+            max_neighbors = get_max_neighbors(training_sample)
+            n_neighbors = np.arange(1, (cv-1)*max_neighbors/cv, 5)
+
+            params = {'n_neighbors':n_neighbors, 
+                      'weights':('uniform','distance')}
+        
+            # Create the model 
+            # for "estimator=XXX" all you need is an instance of a machine -- 
+            # any scikit-learn machine will do. HOwever, non-sklearn machines..
+            # That will be a bit trickier! (i.e. Phil's conv-nets)
+            general_model = GridSearchCV(estimator=KNC(), param_grid=params,
+                                         error_score=0, scoring=metric, cv=cv) 
             
+            # Train the model -- k-fold cross validation is embedded
+            trained_model = general_model.fit(train_features, train_labels)
 
-        #---------------------------------------------------------------    
-        #     TRAIN THE MACHINE; EVALUATE ON VALIDATION SAMPLE
-        #---------------------------------------------------------------        
+            # Test "accuracy" (metric of choice) on validation sample
+            score = trained_model.score(valid_features, valid_labels)
 
-        # Now we run the machine -- need cross validation on whatever size 
-        # training sample we have .. 
-        
-        # For now this will be fixed until we build in other machine options
-        params = {'n_neighbors':np.arange(1, 2*(len(train_sample)-1) / 3, 2), 
-                  'weights':('uniform','distance')}
-        
-        # Create the model 
-        # for "estimator=XXX" all you need is an instance of a machine -- 
-        # any scikit-learn machine will do. HOwever, non-sklearn machines....
-        # That will be a bit trickier! (i.e. Phil's conv-nets)
-        general_model = GridSearchCV(estimator=KNC(), param_grid=params,
-                                     error_score=0, scoring=metric, cv=5) 
-
-        # Train the model -- k-fold cross validation is embedded
-        trained_model = general_model.fit(train_features, train_labels)
-
-        # Test "accuracy" (metric of choice) on validation sample
-        score = trained_model.score(valid_features, valid_labels)
-
-        """
-        MLbureau.member[Name].record_training(\
+            #"""
+            MLbureau.member[Name].record_training(\
                             model_described_by=trained_model.best_estimator_, 
                             with_params=trained_model.best_params_, 
                             trained_on=len(train_features), 
@@ -135,45 +151,37 @@ def MachineClassifier(options, args):
                             with_train_acc=traineed_model.best_score_,
                             and_valid_acc=trained_model.score(valid_features,
                                                               valid_labels))
-        """
-        # Store the trained machine
-        MLbureau.member[Name].model = trained_model
+            #"""
+
+            # Store the trained machine
+            MLbureau.member[Name].model = trained_model
 
         
-        # Compute / store confusion matrix as a function of threshold
-        # produced by this machine on the Expert Validation sample
+            # Compute / store confusion matrix as a function of threshold
+            # produced by this machine on the Expert Validation sample
 
-        fps, tps, thresh = mtrx._binary_clf_curve(valid_labels,
+            fps, tps, thresh = mtrx._binary_clf_curve(valid_labels,
                             trained_model.predict_proba(valid_features)[:,1])
-        metric_list = mtrx.compute_binary_metrics(fps, tps)
-        ACC, TPR, FPR, FNR, TNR, PPV, FDR, FOR, NPV = metric_list
-        
-        MLbureau.member[Name].record_evaluation(accuracy=ACC, 
-                                                completeness_s=TPR,
-                                                contamination_s=FDR,
-                                                completeness_f=TNR,
-                                                contamination_f=NPV)
 
-        pdb.set_trace()
+            metric_list = mtrx.compute_binary_metrics(fps, tps)
+            ACC, TPR, FPR, FNR, TNR, PPV, FDR, FOR, NPV = metric_list
+        
+            MLbureau.member[Name].record_evaluation(accuracy=ACC, 
+                                                    completeness_s=TPR,
+                                                    contamination_s=FDR,
+                                                    completeness_f=TNR,
+                                                    contamination_f=NPV)
 
-        
+            # Now compare with previous machines (if they exist)
 
-        
-        # 3. compare the metric of choice with the evaluation criterion to
-        # see if this machine has sufficiently learned? 
-        # ... what if my criterion is simply "Maximize Accuracy"? 
-        # ... or minimize feature contamination? these require that we 
-        # compare tonight's machine with the previous night's machine 
-        # But if my criterion is simply "have feature contam less than 20%"
-        # then it's easy.... 
-        
-        # IF TRAINED MACHINE PREDICTS WELL ON VALIDATION .... 
-        if MLbureau.member[Name].evaluate():
-            #---------------------------------------------------------------    
-            #                 APPLY MACHINE TO TEST SAMPLE
-            #--------------------------------------------------------------- 
-            # This requires that my runKNC function returns the Machine Object
-            shitski=5
+            pdb.set_trace()
+            
+            # IF TRAINED MACHINE PREDICTS WELL ON VALIDATION .... 
+            if MLbureau.member[Name].evaluate():
+                #-----------------------------------------------------------    
+                #                 APPLY MACHINE TO TEST SAMPLE
+                #----------------------------------------------------------- 
+                MLbureau.member[Name].model.predict(test_features)
       
             #---------------------------------------------------------------    
             #                    PROCESS PREDICTIONS/PROBS
@@ -317,6 +325,26 @@ def MachineClassifier(options, args):
     swap.write_config(configfile, tonights.parameters)
 
     pdb.set_trace()
+
+
+def get_max_neighbors(sample_size, cv_folds):
+    # when performing cross validation using a KNN classifier, the number of 
+    # nearest neighbors MUST be less than the sample size. 
+    # Depending on how many folds one wishes their CV to compute, this changes
+    # So! For the required number of folds, calculate the number of nearest 
+    # neighbors which would be ONE less than the length of the sample size
+    # once the FULL size of the sample has been split into num_folds groups
+    # for cross validation. 
+    # Furthermore, if we have a massively huge sample, we don't actually want 
+    # to search the ENTIRE n_neighbors parameter space. Increasing the 
+    # neighbors effectively smooths over the noise and we don't want to smooth 
+    # TOO much. SO, return a capped value --
+    # Minimum sample size = 100 right now, so max neighbors == 99
+
+    cv_size = len(sample_size)*(1-1/cv_folds)-1
+    max_neighbors = int(np.min([cv_size, 99]))
+    return max_neighbors
+
 
 if __name__ == '__main__':
     parser = OptionParser()

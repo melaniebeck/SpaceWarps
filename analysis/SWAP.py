@@ -238,12 +238,14 @@ def SWAP(argv):
     except: machine = False
     print "SWAP: running MachineClassifier.py after this run?",machine
     
+    """
     # If we are doing ML, are we sending ALL subjects or just those which are
     # 'best' classified by our users (cross one of the thresholds)? 
     if machine:
-        try: training_sample = tonights.parameters['training_sample']
+        try: training_sample = tonights.parameters['training_sample'].lower()
         except: training_sample = None
         print "SWAP: will pass %s training subjects to machine"%training_sample
+    """
 
     # ------------------------------------------------------------------
     # Read in, or create, a bureau of agents who will represent the
@@ -312,12 +314,12 @@ def SWAP(argv):
 
         P = sample.member[ID].mean_probability
 
+        #----------------------------------------------------------------
+        #                UPDATE THE METADATA FILE FOR ML
+        #----------------------------------------------------------------
         if machine:            
-            #----------------------------------------------------------------
-            #                UPDATE THE METADATA FILE FOR ML
-            #----------------------------------------------------------------
             # Method1: EVERYTHING humans see -- the machine sees
-            if training_sample in ['all','All','ALL']:
+            if training_sample == 'all':
                 new_subject = subjects[int(ID)-1]
                 new_subject['SWAP_prob'] = P
                 new_subject['MLsample'] = 'train'
@@ -325,7 +327,7 @@ def SWAP(argv):
             # Method2: Machine only sees subjects which have crossed 
             #          rejected/accepted thresholds; and expert sample
             #          are treated as validation only! 
-            if training_sample in ['best','Best','BEST']:
+            elif training_sample == 'best':
                 if (sample.member[ID].status != 'undecided') or \
                    (sample.member[ID].state == 'inactive'):
                     new_subject = subjects[int(ID)-1]
@@ -333,6 +335,9 @@ def SWAP(argv):
 
                     if new_subject['MLsample'] == 'test':
                         subjects['MLsample'][int(ID)-1] = 'train'
+            else:
+                print "SWAP: not sure what type of training sample to send "\
+                    "to the machine!"
 
         #-------------------------------------------------------------------
         #                 UPDATE AGENT'S CONFUSION MATRIX

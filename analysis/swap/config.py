@@ -1,6 +1,7 @@
 # ===========================================================================
 
 import os, glob, pdb, ast
+from collections import OrderedDict
 
 # ======================================================================
 # GENERISIZE THIS (and reduce/remove global parameters)
@@ -59,7 +60,7 @@ class Configuration(object):
 
     def __init__(self,configfile):
         self.file = configfile
-        self.parameters = {}
+        self.parameters = OrderedDict()
         self.read()
         self.convert()
         self.prepare()
