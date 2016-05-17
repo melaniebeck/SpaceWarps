@@ -19,7 +19,8 @@ def whiten(data):
         data[:,col] = (data[:,col]-mean)/std 
     return data
 
-def extract_training(data, keys=['M20', 'C', 'E', 'A', 'G']):
+   
+def extract_features(data, keys=['M20', 'C', 'E', 'A', 'G']):
     '''
     INPUTS:
         astropy Table (or dictionary?)

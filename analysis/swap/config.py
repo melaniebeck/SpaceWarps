@@ -79,7 +79,7 @@ class Configuration(object):
             line = line.split('#')[0]
             # Remove whitespace:
             line = ''.join(line.split())
-            print line
+            #print line
             # Ignore lines without colons:
             if ':' not in line: continue
             # Interpret remaining lines, which contain Name:Value pairs:

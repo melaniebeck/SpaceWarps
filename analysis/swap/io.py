@@ -32,6 +32,8 @@ from collections import Counter
 
         write_config():
 
+        get_new_filename(parameters, flavour, source=None):
+
     BUGS
 
     AUTHORS
@@ -75,8 +77,12 @@ def read_pickle(filename,flavour):
             contents = swap.Collection()
             print "SWAP: made a new",contents
 
-        elif flavour in ['database','metadata']:
+        elif 'database' in flavour:
             contents = None
+
+        elif 'metadata' in flavour:
+            contents = swap.StorageLocker()
+            print "SWAP: generated a new", contents
 
     return contents
 
@@ -212,21 +218,23 @@ def write_catalog(sample,filename,thresholds,kind='test',source=None):
 def get_new_filename(pars,flavour,source=None):
 
     # Usually, this is what we want filenames to look like:
-    if source == 'ML': 
-        stem = '%s_ML%s'%(pars['trunk'],flavour)
-    else:  
-        stem = '%s_%s'%(pars['trunk'],flavour)
+    stem = pars['trunk']+'_'+flavour
     folder = pars['dir']
     ext = 'txt'
-    # Pickles are an exception though!
 
-    if flavour in ['bureau', 'collection', 'MLcollection', 'metadata',
+    # Pickle filenames
+    if flavour in ['bureau', 'collection', 'MLcollection', 'metadata', 
                    'database', 'offline']:
-        stem = pars['survey']+'_'+flavour
+        if source == 'ML':   stem = pars['survey']+'_ML'+flavour
+        else: stem = pars['survey']+'_'+flavour
         ext = 'pickle'
         folder = '.'
+    
+    # image filenames
     elif flavour in ['histories', 'trajectories', 'sample', 'probabilities']:
         ext = 'png'
+
+    # catalog filenames
     elif flavour in ['retire_these', 'candidates', 'training_true_positives', 
                      'training_false_positives', 'training_true_negatives', 
                      'training_false_negatives', 'candidate_catalog', 

@@ -42,8 +42,10 @@ class Collection(object):
     def __init__(self):
 
         self.member = {}
-        self.probabilities = {'sim':np.array([]), 'dud':np.array([]), 'test':np.array([])}
-        self.exposure = {'sim':np.array([]), 'dud':np.array([]), 'test':np.array([])}
+        self.probabilities = {'sim':np.array([]), 'dud':np.array([]), 
+                              'test':np.array([])}
+        self.exposure = {'sim':np.array([]), 'dud':np.array([]), 
+                         'test':np.array([])}
 
         return None
 

@@ -26,6 +26,13 @@ parser.add_option("-d", "--dir", dest="directory_name", default=None,
 if options.startup and options.config_name: 
     config = options.config_name
     count = 0
+    try:
+        machine = swap.Configuration(config).parameters['machine']
+    except:
+        machine = False
+        print "SWAPSHOP found no 'machine' parameter in the configfile"
+        print "MachineClassifier.py will not be called"
+
 elif options.startup:
     config = "startup.config"
     count = 0
@@ -47,10 +54,6 @@ if not os.path.exists(log_dir): os.makedirs(log_dir)
 
 
 while more_to_do:
-    # 4/10/16 -- I think this idea is obsolete now...
-    # If this is the first run, need to initialize the Machine's Collection
-    #if config == 'startup.config':
-    #    os.system("python init_MachineCollection.py")
 
     # Define "today's" logfile name -- the count specifies which day
     logfile = "%s/GZ2_%i.log"%(log_dir,count)
@@ -59,9 +62,9 @@ while more_to_do:
     #os.system("python SWAP.py %s > %s"%(config,logfile))
     os.system("python SWAP.py %s"%(config))
 
-    # ALWAYS run MachineClassifier.py with update.config!!! 
-    # Because MC.py will NEVER be run before SWAP.py
-    #os.system("python MachineClassifier.py -c update.config")
+    if machine:
+        # ALWAYS run MachineClassifier.py with update.config!
+        os.system("python MachineClassifier.py -c update.config")
 
     # Increment the day
     count+=1

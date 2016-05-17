@@ -72,11 +72,13 @@ class Agent_ML(object):
         # Contamination(S) == 1 - Precision (False Discovery Rate)
         # Completeness(F) == Specificity (True Negative Rate)
         # Contamination(F) == False Omission Rate 
-        self.evaluationhistory = {'Accuracy':np.array([]),
-                                  'Completeness(S)':np.array([]),
-                                  'Contamination(S)':np.array([]),
-                                  'Completeness(F)':np.array([]),
-                                  'Contamination(F)':np.array([])}
+        self.evaluationhistory = {'accuracy':[],
+                                  'precision':[],
+                                  'recall':[],
+                                  'false_pos':[],
+                                  'Completeness(F)':[],
+                                  'Contamination(F)':[],
+                                  'area_under_ROC':[]}
 
         # This is SUPER necessary -- 
         # Track the evolution of the model and the best parameters found
@@ -110,59 +112,52 @@ class Agent_ML(object):
         self.traininghistory['TrainACC'] = \
                     np.append(self.traininghistory['TrainACC'], with_train_acc)
         self.traininghistory['ValidACC'] = \
-                    np.append(self.traininghistory['ValidACC'], with_valid_acc)
+                    np.append(self.traininghistory['ValidACC'], and_valid_acc)
 
         return
 
-    def record_evaluation(self, accuracy=None, completeness_s=None, 
-                          contamination_s=None, completeness_f=None, 
-                          contamination_f=None):
+    def record_evaluation(self, accuracy=None, recall=None, precision=None, 
+                          false_pos=None, completeness_f=None, 
+                          contamination_f=None, area_under_curve=None):
 
-        self.evaluationhistory['Accuracy'] = \
-                    np.append(self.evaluationhistory['Accuracy'], accuracy)
+        self.evaluationhistory['accuracy'].append(accuracy)
+        self.evaluationhistory['recall'].append(recall)
+        self.evaluationhistory['precision'].append(precision)
+        self.evaluationhistory['false_pos'].append(false_pos)
+        self.evaluationhistory['Completeness(F)'].append(completeness_f)
+        self.evaluationhistory['Contamination(F)'].append(contamination_f)
+        self.evaluationhistory['area_under_ROC'].append(area_under_curve)
 
-        self.evaluationhistory['Completeness(S)'] = \
-                    np.append(self.evaluationhistory['Completeness(S)'], 
-                              completeness_s)
-
-        self.evaluationhistory['Contamination(S)'] = \
-                    np.append(self.evaluationhistory['Contamination(S)'], 
-                              contamination_s)
-
-        self.evaluationhistory['Completeness(F)'] = \
-                    np.append(self.evaluationhistory['Completeness(F)'], 
-                              completeness_f)
-
-        self.evaluationhistory['Contamination(F)'] = \
-                    np.append(self.evaluationhistory['Contamination(F)'], 
-                              contamination_f)
         return
 
-    def evaluate(self):
-        # Can we use this to evaluate the metric? 
-        # which metric is it? Metric is a string? 
-        # For now let's make this simple -- Let's say we require that 
-        # feature contamination be below 20%
-        # To test for this, I need to know which metric(s), and criteria
-        # For now, the only metrics you can choose are ACC, TPR, TNR, CONT_S, 
-        # or CONT_F
+    def is_trained(self, metric):
+        # LEARNING CURVE -- find where accuracy plateaus
+        # Define "plateau" -- 3 nights in a row with less than XXX difference?
 
-        # This evaluation based on the fact that no one would want to 
-        # minimize the true positive rate or maximize the contamination...
-        if self.eval_metric in ['TPR', 'TNR', 'ACC']:
-            if self.evaluationhistory[self.eval_metric] > self.eval_criterion:
+        # if the differences in the metric for the past three nights are all
+        # less than a percent -- WE'VE REACHED A PLATEAU
+
+        if len(self.traininghistory['ValidACC']) >= 3:
+
+            differences = np.diff(self.traininghistory['ValidACC'])
+
+            if np.all(differences[-3:]<.01):
                 return True
-            else: return False
+        
+        return False
 
-        elif self.eval_metric in ['CONT_S', 'CONT_F']:
-            if self.evaluationhistory[self.eval_metric] < self.eval_criterion:
-                return True
-            else: return False
 
-        else:
-            print "Not a valid metric."
-            return False
+    def plot_learning_curve(self):
+        self
 
-    #def plot_metrics(self):
+    def plot_ROC(self):
+        plt.figure(figsize=(10,10))
+        plt.plot(self.evaluationhistory['false_pos'][-1], 
+                 self.evaluationhistory['recall'][-1], color='purple')
+        plt.xlabel('False Positive Rate')
+        plt.ylabel('True Positive Rate (Recall)')
+        plt.show()
+        plt.close()
+
         
         

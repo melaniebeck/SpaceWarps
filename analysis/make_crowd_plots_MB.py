@@ -190,11 +190,15 @@ def make_crowd_plots(argv):
     cfrac1_all = cumulativecontribution1_all / totalcontribution1_all
     vfrac1_all = np.arange(Nv1_all) / float(Nv1_all)
 
-    index = np.where(cfrac1_all > 0.9)[0][0]
+    try:
+        index = np.where(cfrac1_all > 0.9)[0][0]
+        print "make_crowd_plots: %.2f%% the volunteers - %i people - "\
+            "contributed 90%% of the information at Stage 1"\
+            %(100*vfrac1_all[index], int(Nv1_all*vfrac1_all[index]))
+    except:
+        print "make_crowd_plots: NO volunteers contributed more than 90%%"
+        pass
 
-    print "make_crowd_plots: %.2f%% the volunteers - %i people - contributed"\
-        " 90%% of the information at Stage 1"%(100*vfrac1_all[index], 
-                                             int(Nv1_all*vfrac1_all[index]))
 
     print "make_crowd_plots: total amount of information generated at "\
         "stage 1: %.2f bits"%np.sum(d['information_all1'])
@@ -219,11 +223,15 @@ def make_crowd_plots(argv):
     cfrac1 = cumulativecontribution1 / totalcontribution1_all
     vfrac1 = np.arange(Nv1) / float(Nv1)
 
-    index = np.where(cfrac1 > 0.9)[0][0]
+    try:
+        index = np.where(cfrac1 > 0.9)[0][0]
 
-    print "make_crowd_plots: %.2f%% of the experienced volunteers - %i "\
-        "people - contributed 90%% of the information at Stage 1"\
-        %(100*vfrac1[index], int(Nv1*vfrac1[index]))
+        print "make_crowd_plots: %.2f%% of the experienced volunteers - %i "\
+            "people - contributed 90%% of the information at Stage 1"\
+            %(100*vfrac1[index], int(Nv1*vfrac1[index]))
+
+    except:
+        print "make_crowd_plots: NO experience volunteers contributed 90%%"
 
     # plot experienced fractions... 
     plt.plot(vfrac1, cfrac1, '--b', linewidth=4, 

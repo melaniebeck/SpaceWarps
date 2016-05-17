@@ -33,11 +33,17 @@ from subject import Ntrajectory
 
 # =========================================================================
 
-dashedline       = 'SWAP: --------------------------------------------------------------------------'
+SW_dashedline       = 'SWAP: --------------------------------------------------------------------------'
+SW_hello            = '                   SWAP: the Space Warps Analysis Pipeline                      '
+
+ML_dashedline       = 'ML: --------------------------------------------------------------------------'
+ML_hello            = '           ML: the Machine Learning component of Galaxy Zoo Express            '
+
+
 doubledashedline = '================================================================================'
 
-hello            = '                   SWAP: the Space Warps Analysis Pipeline                      '
 helloswitch      = '                   SWITCH: the Space Warps Retirement Plan                      '
+
 
 # ======================================================================
 # Write a PDF report, using latex:

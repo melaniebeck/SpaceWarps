@@ -95,7 +95,7 @@ def SWAP(argv):
     if len(args) == 1:
         configfile = args[0]
         print swap.doubledashedline
-        print swap.hello
+        print swap.SW_hello
         print swap.doubledashedline
         print "SWAP: taking instructions from",configfile
     else:
@@ -238,14 +238,13 @@ def SWAP(argv):
     except: machine = False
     print "SWAP: running MachineClassifier.py after this run?",machine
     
-    """
     # If we are doing ML, are we sending ALL subjects or just those which are
     # 'best' classified by our users (cross one of the thresholds)? 
     if machine:
         try: training_sample = tonights.parameters['training_sample'].lower()
         except: training_sample = None
         print "SWAP: will pass %s training subjects to machine"%training_sample
-    """
+
 
     # ------------------------------------------------------------------
     # Read in, or create, a bureau of agents who will represent the
@@ -258,7 +257,8 @@ def SWAP(argv):
 
     # ------------------------------------------------------------------
     # Read in metadata (all subjects for which we have morph params)
-    subjects = swap.read_pickle(tonights.parameters['metadatafile'], 'metadata')
+    storage = swap.read_pickle(tonights.parameters['metadatafile'], 'metadata')
+    subjects = storage.subjects
 
     # ------------------------------------------------------------------
     # Open up database:
@@ -318,12 +318,16 @@ def SWAP(argv):
         #                UPDATE THE METADATA FILE FOR ML
         #----------------------------------------------------------------
         if machine:            
+            # --------------------------------------------------
             # Method1: EVERYTHING humans see -- the machine sees
             if training_sample == 'all':
                 new_subject = subjects[int(ID)-1]
                 new_subject['SWAP_prob'] = P
-                new_subject['MLsample'] = 'train'
                 
+                if new_subject['MLsample'] == 'test':
+                    new_subject['MLsample'] = 'train'
+                
+            # ----------------------------------------------------
             # Method2: Machine only sees subjects which have crossed 
             #          rejected/accepted thresholds; and expert sample
             #          are treated as validation only! 
@@ -331,10 +335,11 @@ def SWAP(argv):
                 if (sample.member[ID].status != 'undecided') or \
                    (sample.member[ID].state == 'inactive'):
                     new_subject = subjects[int(ID)-1]
-                    new_subjects['SWAP_prob'] = P
+                    new_subject['SWAP_prob'] = P
 
                     if new_subject['MLsample'] == 'test':
-                        subjects['MLsample'][int(ID)-1] = 'train'
+                        new_subject['MLsample'] = 'train'
+
             else:
                 print "SWAP: not sure what type of training sample to send "\
                     "to the machine!"
@@ -420,10 +425,17 @@ def SWAP(argv):
 
     # All good things come to an end:
     if count == 0:
-        print "SWAP: if we're not plotting, something might be wrong:"
         print "SWAP: 0 classifications found."
+
+        if sample.size()>0 and bureau.size() > 0: 
+            plots = True
+            print "SWAP: plotting what has been processed so far..."
+        else:
+            print "SWAP: something might be wrong..."
+
         t = t1
         more_to_do = False
+
         # return
     #elif count < count_max: # ie we didn't make it through the whole \
     # batch  this time!
@@ -544,9 +556,8 @@ def SWAP(argv):
         
         metadatafile = swap.get_new_filename(tonights.parameters,'metadata')
         print "SWAP: saving metadata to "+metadatafile
-        swap.write_pickle(subjects,metadatafile)
+        swap.write_pickle(storage,metadatafile)
         tonights.parameters['metadatafile'] = metadatafile
-
 
     # ------------------------------------------------------------------
     # If there is more to do we need to update the config file for the next day

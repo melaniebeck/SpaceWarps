@@ -4,6 +4,7 @@ from io import *
 from bureau import *
 from agent import *
 from collection import *
+from storage import *
 from subject import *
 from toydb import *
 from mongodb import *

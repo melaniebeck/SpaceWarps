@@ -52,17 +52,17 @@ class MySQLdb(object):
 
         if word == 'since':
             # GENERISIZE THIS
-            query = ("select * from task1_expert as t "
+            query = ("select * from task1_full as t "
                      "where t.created_at > '%s'"%str(t))
             self.cur1.execute(query)
 
         elif word == 'before':
-            query = ("select * from task1_expert as t "
+            query = ("select * from task1_full as t "
                      "and t.created_at < '%s'"%str(t))
             self.cur1.execute(query)
 
         elif word == 'between':
-            query = ("select * from task1_expert as t "
+            query = ("select * from task1_full as t "
                 "where t.created_at between '%s' and '%s'"%(str(t), str(t2)))
             self.cur1.execute(query)
 
@@ -129,20 +129,6 @@ class MySQLdb(object):
             kind = 'test'
             flavor = 'test'
             truth = 'UNKNOWN'
-
-        """
-        elif subject['Nair_label']!=-1:
-            category = 'training'
-            if subject['Nair_label']==0:
-                flavor='lensing cluster'
-                kind='sim'
-                truth='SMOOTH'
-            elif subject['Nair_label']==1:
-                flavor='dud'
-                kind='dud'
-                truth='NOT'
-        """
-
 
         items = t, str(Name), str(ID), str(ZooID), category, kind, flavor,\
                 result, truth, location

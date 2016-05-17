@@ -86,8 +86,8 @@ class Subject(object):
 
 # ----------------------------------------------------------------------
 
-    def __init__(self,ID,ZooID,category,kind,flavor,truth,thresholds,
-                 location,prior=0.3):
+    def __init__(self, ID, ZooID, category=None, kind=None, flavor=None, 
+                 truth=None, thresholds=None, location=None, prior=0.3):
 
         self.ID = ID
         self.ZooID = ZooID
