@@ -246,8 +246,9 @@ def MachineClassifier(options, args):
             
             #MLagent.plot_ROC()
 
+            # ---------------------------------------------------------------
             # IF TRAINED MACHINE PREDICTS WELL ON VALIDATION ....
-            # i.e. if the training TONIGHT performs better than previous nights
+            # ---------------------------------------------------------------
             if MLagent.is_trained(metric):
                 print "ML: %s has successfully trained and will be applied "\
                     "to the test sample."
