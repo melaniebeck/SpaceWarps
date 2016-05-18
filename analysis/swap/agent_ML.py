@@ -118,7 +118,7 @@ class Agent_ML(object):
 
     def record_evaluation(self, accuracy=None, recall=None, precision=None, 
                           false_pos=None, completeness_f=None, 
-                          contamination_f=None, area_under_curve=None):
+                          contamination_f=None):
 
         self.evaluationhistory['accuracy'].append(accuracy)
         self.evaluationhistory['recall'].append(recall)
@@ -137,7 +137,7 @@ class Agent_ML(object):
         # if the differences in the metric for the past three nights are all
         # less than a percent -- WE'VE REACHED A PLATEAU
 
-        if len(self.traininghistory['ValidACC']) >= 3:
+        if len(self.traininghistory['ValidACC']) >= 4:
 
             differences = np.diff(self.traininghistory['ValidACC'])
 

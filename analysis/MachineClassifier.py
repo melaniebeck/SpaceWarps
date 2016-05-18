@@ -194,11 +194,9 @@ def MachineClassifier(options, args):
             #          'weights':('uniform','distance')}
 
             num_features = train_features.shape[1]
-            #params = {'max_features':np.arange(round(np.sqrt(num_features)), 
-            #                                   num_features),
-            #          'max_depth':np.arange(2,16)}
-                    
-            params = {'max_features':np.arange(1,train_features.shape[1]+1),
+        
+            min_features = int(round(np.sqrt(num_features)))
+            params = {'max_features':np.arange(min_features, num_features+1),
                       'max_depth':np.arange(2,16)}
 
             # Create the model 
@@ -220,10 +218,12 @@ def MachineClassifier(options, args):
             score = trained_model.score(valid_features, valid_labels)
 
             time = dt.datetime.today().strftime('%Y-%m-%d')
+            ratio = np.sum(train_labels==0) / len(train_labels)
             MLagent.record_training(model_described_by=
                                     trained_model.best_estimator_, 
                                     with_params=trained_model.best_params_, 
                                     trained_on=len(train_features), 
+                                    with_class_ratio=ratio,
                                     at_time=time, 
                                     with_train_acc=trained_model.best_score_,
                                     and_valid_acc=trained_model.score(
