@@ -86,6 +86,7 @@ class Agent_ML(object):
         self.traininghistory = {'Model':np.array([]), 
                                 'Parameters':np.array([]), 
                                 'TrainingSize':np.array([]), 
+                                'ClassRatio':np.array([]),
                                 'At_Time':np.array([]),
                                 'TrainACC':np.array([]),
                                 'ValidACC':np.array([])}
@@ -97,8 +98,9 @@ class Agent_ML(object):
 
 
     def record_training(self, model_described_by=None, with_params=None, 
-                        trained_on=None, at_time=None, with_train_acc=None,
-                        and_valid_acc=None):
+                        trained_on=None, with_ratio=None, at_time=None, 
+                        with_train_score=None, and_valid_score=None):
+
         # Need to record the outcome of the cross-validation (which params 
         # were used each time) but this is dependent on the algorithm
         self.traininghistory['Model'] = \
@@ -107,6 +109,8 @@ class Agent_ML(object):
                     np.append(self.traininghistory['Parameters'], with_params)
         self.traininghistory['TrainingSize'] = \
                     np.append(self.traininghistory['TrainingSize'], trained_on)
+        self.traininghistory['ClassRatio'] = \
+                    np.append(self.traininghistory['ClassRatio'], with_ratio)
         self.traininghistory['At_Time'] = \
                     np.append(self.traininghistory['At_Time'], at_time)
         self.traininghistory['TrainACC'] = \

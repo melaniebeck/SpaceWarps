@@ -218,12 +218,13 @@ def MachineClassifier(options, args):
             score = trained_model.score(valid_features, valid_labels)
 
             time = dt.datetime.today().strftime('%Y-%m-%d')
-            ratio = np.sum(train_labels==0) / len(train_labels)
+            ratio = np.sum(train_labels==1) / len(train_labels)
+
             MLagent.record_training(model_described_by=
                                     trained_model.best_estimator_, 
                                     with_params=trained_model.best_params_, 
                                     trained_on=len(train_features), 
-                                    with_class_ratio=ratio,
+                                    with_ratio=ratio,
                                     at_time=time, 
                                     with_train_acc=trained_model.best_score_,
                                     and_valid_acc=trained_model.score(
