@@ -117,19 +117,38 @@ def MachineClassifier(options, args):
 
     train_sample = storage.fetch_subsample(sample_type='train',
                                            class_label='GZ2_label')
-    
+    """ Notes about the training sample:
+    # this will select only those which have my morphology measured for them
+    # AND which have a true "answer" according to GZ2
+    # Eventually we could open this up to include the ~10k that aren't in the 
+    # GZ Main Sample but I think, for now, we should reduce ourselves to this
+    # stricter sample so that we always have back-up "truth" for each galaxy.
+    """
+
     try:
         train_meta, train_features = ml.extract_features(train_sample)
+        original_length = len(train_meta)
+
     except TypeError:
         print "ML: can't extract features from subsample."
         print "ML: Exiting MachineClassifier.py"
         sys.exit()
+
     else:
         # TODO: consider making this part of SWAP's duties? 
+        # 5/18/16: Only use those subjects which are no longer on the prior
+        off_the_fence = np.where(train_meta['SWAP_prob']!=prior)
+        train_meta = train_meta[off_the_fence]
+        train_features = train_features[off_the_fence]
         train_labels = np.array([1 if p > prior else 0 for p in 
                                  train_meta['SWAP_prob']])
+
         #train_labels = train_meta['Nair_label'].filled()
-        print "ML: found a training sample of %i subjects"%len(train_meta)
+
+        shortened_length = len(train_meta)
+        print "ML: found a training sample of %i subjects"%shortened_length
+        removed = original_length - shortened_length
+        print "ML: %i subjects had prior probability and were removed"%removed
     
 
     valid_sample = storage.fetch_subsample(sample_type='valid',
@@ -145,7 +164,7 @@ def MachineClassifier(options, args):
     # ---------------------------------------------------------------------
     # Require a minimum size training sample [Be reasonable, my good man!]
     # ---------------------------------------------------------------------
-    if len(train_sample) < 500: 
+    if len(train_sample) < 1000: 
         print "ML: training sample is too small to be worth anything."
         print "ML: Exiting MachineClassifier.py"
         sys.exit()
@@ -226,22 +245,17 @@ def MachineClassifier(options, args):
                                     trained_on=len(train_features), 
                                     with_ratio=ratio,
                                     at_time=time, 
-                                    with_train_acc=trained_model.best_score_,
-                                    and_valid_acc=trained_model.score(
+                                    with_train_score=trained_model.best_score_,
+                                    and_valid_score=trained_model.score(
                                         valid_features, valid_labels))
 
-            # Compute / store confusion matrix as a function of threshold
-            # produced by this machine on the Expert Validation sample
-            #fps, tps, thresh = mtrx._binary_clf_curve(valid_labels,
-            #                trained_model.predict_proba(valid_features)[:,1])
             fps, tps, thresh = mtrx.roc_curve(valid_labels, 
                             trained_model.predict_proba(valid_features)[:,1])
-            #roc_score = mtrx.roc_auc_score(fps,tps)
 
             metric_list = compute_binary_metrics(fps, tps)
             ACC, TPR, FPR, FNR, TNR, PPV, FDR, FOR, NPV = metric_list
         
-            MLagent.record_evaluation(accuracy=ACC, recall=TPR, precision=PPV,
+            MLagent.record_validation(accuracy=ACC, recall=TPR, precision=PPV,
                                       false_pos=FPR, completeness_f=TNR,
                                       contamination_f=NPV)
             
@@ -257,6 +271,14 @@ def MachineClassifier(options, args):
                 # Retrieve the test sample 
                 test_sample = storage.fetch_subsample(sample_type='test',
                                                       class_label='GZ2_label')
+                """ Notes on test sample:
+                The test sample will, in real life, be those subjects for which
+                we don't have an answer a priori. However, for now, this sample
+                is how we will judge, in part, the performance of the overall
+                method. As such, we only include those subjects which have 
+                GZ2 labels in the Main Sample.
+                """
+
                 try:
                     test_meta, test_features = ml.extract_features(test_sample)
                 except:
@@ -270,11 +292,22 @@ def MachineClassifier(options, args):
                 #----------------------------------------------------------- 
                 predictions = MLagent.model.predict(test_features)
                 probabilities = MLagent.model.predict_proba(test_features)
+
                 print "ML: %s has finished predicting labels for the test "\
                     "sample."%Name
                 print "ML: Generating performance report on the test sample:"
+
                 test_labels = test_meta['GZ2_label'].filled()
                 print mtrx.classification_report(test_labels, predictions)
+
+                test_accuracy=mtrx.accuracy_score(test_labels,predictions)
+                test_precision=mtrx.precision_score(test_labels,predictions)
+                test_recall=mtrx.recall_score(test_labels,predictions)
+
+                MLagent.record_evaluation(accuracy_score=test_accuracy,
+                                          precision_score=test_precision,
+                                          recall_score=test_recall,
+                                          at_time=time)
                 #pdb.set_trace()
                 
                 # ----------------------------------------------------------
@@ -283,8 +316,10 @@ def MachineClassifier(options, args):
                 test_meta['predictions'] = predictions
                 test_meta['probability_of_smooth'] = probabilities[:,1]
                 
-                filename=tonights.parameters['trunk']+'_'+Name+'.pkl'
+                filename=tonights.parameters['trunk']+'_'+Name+'.pickle'
                 swap.write_pickle(test_meta, filename)
+
+
 
                 """
                 for thing, pred, p in zip(test_meta, predictions,

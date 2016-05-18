@@ -85,24 +85,29 @@ class StorageLocker(object):
 # ----------------------------------------------------------------------------
 # Return the requested subset (valid, train, test)
 
-    def fetch_subsample(self, sample_type, class_label=None):
+    def fetch_subsample(self, sample_type=None, class_label=None):
+
         # create mask for sample type of interest
-        selection = self.subjects['MLsample']==sample_type
+        try:
+            selection = self.subjects['MLsample']==sample_type
+        except:
+            print "ML: no subsample of type %s found!"%sample_type
+            return None
 
         if sum(selection) > 0:
             subsample = self.subjects[selection]
             
+            # Even if a class label exists, it might not be valid for the entire
+            # GZ subject sample. Weed out only those subjects which have a 
+            # class label of the type specified
             if class_label:
                 try:
                     subsample = subsample[subsample[class_label]!=-1]
                 except:
                     print "ML: %s does not exist as a class label"%class_label
+                    print "ML: delivering the entire subsample"
 
             return subsample
-
-        else:
-            print "ML: no subsample labeled '%s' found in storage!"%label
-            return None
 
        
 

@@ -62,25 +62,7 @@ class Agent_ML(object):
             print "%s is not a valid scoring metric."%metric
             exit
 
-        # This might eventually be removed but for now I think it'll be useful
-        # This will store the 'metric' calculated on the Expert Sample as a
-        # function of the 'threshold', which in our case is the probability
-        # of being "smooth" (having the characteristic of choice)
         
-        # KEY: Astronomer's Term == Statistician's Term
-        # Completeness(S) == Recall (True Positive Rate)
-        # Contamination(S) == 1 - Precision (False Discovery Rate)
-        # Completeness(F) == Specificity (True Negative Rate)
-        # Contamination(F) == False Omission Rate 
-        self.evaluationhistory = {'accuracy':[],
-                                  'precision':[],
-                                  'recall':[],
-                                  'false_pos':[],
-                                  'Completeness(F)':[],
-                                  'Contamination(F)':[],
-                                  'area_under_ROC':[]}
-
-        # This is SUPER necessary -- 
         # Track the evolution of the model and the best parameters found
         # during a Grid Search over the parameter space with CV
         self.traininghistory = {'Model':np.array([]), 
@@ -88,11 +70,27 @@ class Agent_ML(object):
                                 'TrainingSize':np.array([]), 
                                 'ClassRatio':np.array([]),
                                 'At_Time':np.array([]),
-                                'TrainACC':np.array([]),
-                                'ValidACC':np.array([])}
+                                'TrainingScore':np.array([]),
+                                'ValidScore':np.array([])}
 
-        # Based on some combination of the above we can eventually determine
-        # appropriate "scores" to evaluate the efficacy of our trained machine
+
+        # Record various metrics measured on the validation sample
+        # as a function of a threshold (for ROC curve plotting, etc.)
+        self.validationhistory = {'accuracy':[],
+                                  'precision':[],
+                                  'recall':[],
+                                  'false_pos':[],
+                                  'Completeness(F)':[],
+                                  'Contamination(F)':[]}
+
+
+        # FOR TESTING ONLY -- REMOVE THIS BEFORE APPLYING TO ANOTHER DATASET
+        # Once the machine has learned, apply it to the test sample for 
+        # overall method evaluation
+        self.evaluationhistory = {'accuracy_score':[],
+                                  'precision_score':[],
+                                  'recall_score':[]}
+
 
         return None
 
@@ -113,26 +111,34 @@ class Agent_ML(object):
                     np.append(self.traininghistory['ClassRatio'], with_ratio)
         self.traininghistory['At_Time'] = \
                     np.append(self.traininghistory['At_Time'], at_time)
-        self.traininghistory['TrainACC'] = \
-                    np.append(self.traininghistory['TrainACC'], with_train_acc)
-        self.traininghistory['ValidACC'] = \
-                    np.append(self.traininghistory['ValidACC'], and_valid_acc)
+        self.traininghistory['TrainingScore'] = \
+            np.append(self.traininghistory['TrainingScore'], with_train_score)
+        self.traininghistory['ValidScore'] = \
+            np.append(self.traininghistory['ValidScore'], and_valid_score)
 
         return
 
-    def record_evaluation(self, accuracy=None, recall=None, precision=None, 
+    def record_validation(self, accuracy=None, recall=None, precision=None, 
                           false_pos=None, completeness_f=None, 
                           contamination_f=None):
 
-        self.evaluationhistory['accuracy'].append(accuracy)
-        self.evaluationhistory['recall'].append(recall)
-        self.evaluationhistory['precision'].append(precision)
-        self.evaluationhistory['false_pos'].append(false_pos)
-        self.evaluationhistory['Completeness(F)'].append(completeness_f)
-        self.evaluationhistory['Contamination(F)'].append(contamination_f)
-        self.evaluationhistory['area_under_ROC'].append(area_under_curve)
+        self.validationhistory['accuracy'].append(accuracy)
+        self.validationhistory['recall'].append(recall)
+        self.validationhistory['precision'].append(precision)
+        self.validationhistory['false_pos'].append(false_pos)
+        self.validationhistory['Completeness(F)'].append(completeness_f)
+        self.validationhistory['Contamination(F)'].append(contamination_f)
 
         return
+
+    def record_evaluation(self,accuracy=None,precision=None,recall=None,
+                          at_time=None):
+        self.evaluationhistory['accuracy_score'].append(accuracy)
+        self.evaluationhistory['precision_score'].append(precision)
+        self.evaluationhistory['recall_score'].append(recall)
+        self.evaluationhistory['at_time'].append(at_time)
+        
+        return 
 
     def is_trained(self, metric):
         # LEARNING CURVE -- find where accuracy plateaus
