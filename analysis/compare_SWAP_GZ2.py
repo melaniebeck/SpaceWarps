@@ -8,13 +8,17 @@ from astropy.table import Table, vstack, join
 from optparse import OptionParser
 import swap
 
-from figure import set_pub
+from figure_styles import set_pub
 
 connection = mdb.connect('localhost', 'root', '8croupier!', 'gz2')
 cursor = connection.cursor(mdb.cursors.DictCursor)
 
+
+
 def plot_retired(config):
     set_pub()
+
+    
 
     # PLOT #RETIRED/DETECTED PER DAY SWAP VS GZ2
     # ======================================================================
@@ -25,6 +29,8 @@ def plot_retired(config):
     
     days = int(subprocess.check_output("ls logfiles_%s/* | wc -l"%config, 
                                        shell=True))
+    command = "find %s*/ -maxdepth 1 -type d -print | wc -l"%tonights.parameters['survey']
+    days = int(subprocess.check_output())
     days=days-1
 
     days = 76

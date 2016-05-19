@@ -1,4 +1,5 @@
 import numpy as np
+import pdb
 
 def array_equal(a1, a2):
     return bool(np.asarray(a1 == a2).all())

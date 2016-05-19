@@ -87,9 +87,10 @@ class Agent_ML(object):
         # FOR TESTING ONLY -- REMOVE THIS BEFORE APPLYING TO ANOTHER DATASET
         # Once the machine has learned, apply it to the test sample for 
         # overall method evaluation
-        self.evaluationhistory = {'accuracy_score':[],
+        self.evaluationhistory = {'accuracy_score':[], 
                                   'precision_score':[],
-                                  'recall_score':[]}
+                                  'recall_score':[], 
+                                  'at_time':[]}
 
 
         return None
@@ -131,11 +132,12 @@ class Agent_ML(object):
 
         return
 
-    def record_evaluation(self,accuracy=None,precision=None,recall=None,
-                          at_time=None):
-        self.evaluationhistory['accuracy_score'].append(accuracy)
-        self.evaluationhistory['precision_score'].append(precision)
-        self.evaluationhistory['recall_score'].append(recall)
+    def record_evaluation(self,accuracy_score=None,precision_score=None,
+                          recall_score=None,at_time=None):
+
+        self.evaluationhistory['accuracy_score'].append(accuracy_score)
+        self.evaluationhistory['precision_score'].append(precision_score)
+        self.evaluationhistory['recall_score'].append(recall_score)
         self.evaluationhistory['at_time'].append(at_time)
         
         return 
@@ -147,9 +149,9 @@ class Agent_ML(object):
         # if the differences in the metric for the past three nights are all
         # less than a percent -- WE'VE REACHED A PLATEAU
 
-        if len(self.traininghistory['ValidACC']) >= 4:
+        if len(self.traininghistory['ValidScore']) >= 4:
 
-            differences = np.diff(self.traininghistory['ValidACC'])
+            differences = np.diff(self.traininghistory['ValidScore'])
 
             if np.all(differences[-3:]<.01):
                 return True
