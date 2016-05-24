@@ -3,7 +3,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pdb
 
-F = open('GZ2_sup_0.75_bureau.pickle','rb')
+#F = open('GZ2_sup_0.75_bureau.pickle','rb')
+F = open('sup_run4/GZ2_sup_run4_bureau.pickle','rb')
 bureau = cPickle.load(F)
 F.close()
 agent_ids = bureau.list()
@@ -32,6 +33,8 @@ for ID in agent_ids:
     # at least ONE training image
     number_of_images_seen.append(len(traininghistory))
     number_of_training_seen.append(len(training))
+
+    print training
 
     if len(training) > 0:
         more_than_none.append(len(training))

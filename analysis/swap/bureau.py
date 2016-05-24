@@ -4,6 +4,7 @@ import swap
 
 import numpy as np
 import pylab as plt
+import pdb
 
 # ======================================================================
 
@@ -134,7 +135,8 @@ class Bureau(object):
         for tick in hax.yaxis.get_ticklines():
             tick.set_visible(False)
 
-        plt.hist(logN, bins=bins, histtype='stepfilled', color='yellow', alpha=0.5)
+        plt.hist(logN, bins=bins, histtype='stepfilled', 
+                 color='yellow', alpha=0.5)
 
 
         # Logarithmic axes for information contribution plot:

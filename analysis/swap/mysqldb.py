@@ -114,13 +114,16 @@ class MySQLdb(object):
         # These have been taken care of when building the metadata file
         # Use the Expert_Label if available; otherwise use Nair_label?
         # 5-4-26 Only use Epert labels now (using task1_expert table)
-        if subject['Expert_label']!=-1:
+
+        if subject['Nair_label']!=-1:
             category = 'training'
-            if subject['Expert_label']==0:
+
+            if subject['Nair_label']==1:
                 flavor='lensing cluster'
                 kind='sim'
                 truth='SMOOTH'
-            elif subject['Expert_label']==1:
+
+            elif subject['Nair_label']==0:
                 flavor='dud'
                 kind='dud'
                 truth='NOT'

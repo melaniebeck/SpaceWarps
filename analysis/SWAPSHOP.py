@@ -99,7 +99,8 @@ while more_to_do:
     #more = os.system("grep 'running' .swap.cookie | wc -l")
     if int(subprocess.check_output("grep 'running' .swap.cookie | wc -l", 
                                    shell=True)):
-        config = "update.config"
+        try: config = options.config_name.replace('startup','update')
+        except: config = "update.config"
         print "SWAPSHOP: ran SWAP.py %i times"%count
         print "SWAPSHOP: still more to do!"
         print ""

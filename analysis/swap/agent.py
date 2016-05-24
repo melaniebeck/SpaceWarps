@@ -124,8 +124,8 @@ class Agent(object):
 # ----------------------------------------------------------------------
 
     def __str__(self):
-        return 'individual classification agent representing %s with contribution %.2f' % \
-               (self.name,self.contribution)
+        return 'individual classification agent representing %s with '\
+            'contribution %.2f'%(self.name,self.contribution)
 
 # ----------------------------------------------------------------------
 # Compute expected information per classification:
@@ -144,13 +144,15 @@ class Agent(object):
 # ----------------------------------------------------------------------# Updates confusion matrix with latest result:
 #   eg.  collaboration.member[Name].heard(it_was='LENS',actually_it_was='NOT',with_probability=P,ignore=False)
 
-    def heard(self,it_was=None,actually_it_was=None,with_probability=1.0,ignore=False,ID=None,record=True,at_time=None):
+    def heard(self,it_was=None,actually_it_was=None,with_probability=1.0,
+              ignore=False,ID=None,record=True,at_time=None):
 
         if it_was==None or actually_it_was==None:
             pass
 
         else:
-                        
+            print actually_it_was
+
             if actually_it_was=='SMOOTH':
                 if not ignore:
                     self.PL = (self.PL*self.NL + (it_was==actually_it_was))\
@@ -162,7 +164,6 @@ class Agent(object):
                 self.NL += 1
                 self.NT += 1
 
-                #pdb.set_trace()
             elif actually_it_was=='NOT':
                 if not ignore:
                     self.PD = (self.PD*self.ND + (it_was==actually_it_was))\
@@ -173,8 +174,9 @@ class Agent(object):
                 self.NT += 1
 
             # Unsupervised learning!
+            # You will only find yourself in this loop if 
+            # "supervised_and_unsupervised" is True
             elif actually_it_was=='UNKNOWN':
-
                 increment = with_probability
                 #increment = 2e-2
 
@@ -210,9 +212,8 @@ class Agent(object):
 
                 # self.NT += 1 # Don't count test images as training images?! 
                 # self.NT == 0 if unsupervised? Not sure. Maybe better to count
-                # every image 
-                # as training when unsupervised... Bit odd though.
-                # self.NT += 1
+                # every image as training when unsupervised... Bit odd though.
+                self.NT += 1
 
             else:
                 raise Exception("Apparently, the subject was actually a "+

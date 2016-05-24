@@ -290,6 +290,9 @@ def SWAP(argv):
         tstring,Name,ID,ZooID,category,kind,flavor,X,Y,location=items
         t = datetime.datetime.strptime(tstring, '%Y-%m-%d_%H:%M:%S')
 
+        if Y=='UNKNOWN':
+            print "We should be in unsupervised learning..."
+
         # Break out if we've reached the time limit:
         if t > t2:
             break
@@ -597,7 +600,8 @@ def SWAP(argv):
     
     # UPDATE CONFIG FILE with pickle filenames, dir/trunk, and (maybe) new day
     # ----------------------------------------------------------------------
-    configfile = 'update.config'
+    configfile = configfile.replace('startup','update')
+    #configfile = 'update.config'
 
     # Random_file needs updating, else we always start from the same random
     # state when update.config is reread!
@@ -613,11 +617,15 @@ def SWAP(argv):
         # Make plots! Can't plot everything - uniformly sample 200 of each
         # thing (agent or subject).
 
-        # Agent histories:
+        Nc = np.min([200,bureau.size()])
 
+        # ---------------------------------------------------------------
+        # Agent histories 
+        # (This can't be plotted if some of your agents
+        # don't see training images -- requires Ntraining > 0):
+        #"""
         fig1 = bureau.start_history_plot()
         pngfile = swap.get_new_filename(tonights.parameters,'histories')
-        Nc = np.min([200,bureau.size()])
         print "SWAP: plotting "+str(Nc)+" agent histories in "+pngfile
 
         for Name in bureau.shortlist(Nc):
@@ -625,7 +633,9 @@ def SWAP(argv):
 
         bureau.finish_history_plot(fig1,t,pngfile)
         tonights.parameters['historiesplot'] = pngfile
+        #"""
 
+        # ---------------------------------------------------------------
         # Agent probabilities:
 
         pngfile = swap.get_new_filename(tonights.parameters,'probabilities')
@@ -633,6 +643,7 @@ def SWAP(argv):
         bureau.plot_probabilities(Nc,t,pngfile)
         tonights.parameters['probabilitiesplot'] = pngfile
 
+        # ---------------------------------------------------------------
         # Subject trajectories:
 
         fig3 = sample.start_trajectory_plot()
@@ -654,6 +665,7 @@ def SWAP(argv):
         sample.finish_trajectory_plot(fig3,pngfile,t=t)
         tonights.parameters['trajectoriesplot'] = pngfile
 
+        # ---------------------------------------------------------------
         # Candidates! Plot all undecideds or detections:
 
         fig4 = sample.start_trajectory_plot(final=True)
