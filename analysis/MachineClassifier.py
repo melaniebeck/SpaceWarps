@@ -164,7 +164,7 @@ def MachineClassifier(options, args):
     # ---------------------------------------------------------------------
     # Require a minimum size training sample [Be reasonable, my good man!]
     # ---------------------------------------------------------------------
-    if len(train_sample) < 1000: 
+    if len(train_sample) < 10000: 
         print "ML: training sample is too small to be worth anything."
         print "ML: Exiting MachineClassifier.py"
         sys.exit()

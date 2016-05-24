@@ -1,187 +1,285 @@
 import matplotlib.pyplot as plt
 from matplotlib import cm
 import numpy as np
-import pdb, os, subprocess
+import pdb, os, subprocess, sys
 import MySQLdb as mdb
 import datetime, cPickle
 from astropy.table import Table, vstack, join
 from optparse import OptionParser
 import swap
+import glob
 
 from figure_styles import set_pub
 
-connection = mdb.connect('localhost', 'root', '8croupier!', 'gz2')
-cursor = connection.cursor(mdb.cursors.DictCursor)
 
 
+def fetch_parameters(config):
 
-def plot_retired(config):
-    set_pub()
+    # Open Configuration File 
+    p = swap.Configuration(config)
+    params = p.parameters
 
+    return params
+
+
+def fetch_num_days(params):
+    days = int(subprocess.check_output("find %s*/ -maxdepth 1 -type d -print "
+                                       "| wc -l"%params['survey'], shell=True))
+
+    return int(days)
+
+
+def fetch_num_retired_SWAP(params):   
+
+    print "Fetching subjects classified by GZX..."
+
+    retired = []
     
+    cmd = "ls %s*/*retire_these.txt"%params['survey']
 
-    # PLOT #RETIRED/DETECTED PER DAY SWAP VS GZ2
-    # ======================================================================
-    classifications_per_day = True
+    # Pull up all "retired" files from each day of this run
+    cmdout = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+    retirefiles = cmdout.stdout.read().splitlines()
+   
+    for retirefile in retirefiles:
+        # read in the retirefile
+        with open(retirefile,'rb') as f:
+            stuff = f.read().splitlines()
+            
+        retired.append(len(stuff))
 
-    # First, get # of retired/detected subjects per day from SWAP
-    retired, detected, total = np.array([]), np.array([]), np.array([])
+    print "Fetched a grand total of %i subjects classififed by GZX"%retired[-1]
+    return np.array(retired)
+
+
+def fetch_num_detected_rejected_SWAP(params):
     
-    days = int(subprocess.check_output("ls logfiles_%s/* | wc -l"%config, 
-                                       shell=True))
-    command = "find %s*/ -maxdepth 1 -type d -print | wc -l"%tonights.parameters['survey']
-    days = int(subprocess.check_output())
-    days=days-1
+    # ------------------------------------------------------------------
+    # Load up detected subjects... 
+    print "Fetching subjects detected and rejected by GZX..."
 
-    days = 76
+    try:
+        cmd = "ls %s*/*detected_catalog.txt"%params['survey']
+        cmdout = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+        detectfiles = cmdout.stdout.read().splitlines()
 
-    logfiles = ["logfiles_%s/GZ2_%i.log"%(config,i) for i in range(days)]
-
-
-    for log in logfiles:
-        #pdb.set_trace()
-
-        ret = subprocess.check_output("awk '/retired_catalog/ {print $2}' %s"
-                                      %log, shell=True)
-        det = subprocess.check_output("awk '/detected_catalog/ {print $2}' %s"
-                                      %log, shell=True)
-        tot = subprocess.check_output("awk '/SWAP: From/ {print $3}' %s"
-                                        %log, shell=True).splitlines()[0]
-        try: 
-            retired = np.append(retired, int(ret))
-            detected = np.append(detected, int(det))
-            total = np.append(total, int(tot))
-        except: 
-            retired = np.append(retired,np.nan)
-            detected = np.append(detected, np.nan)
-            total = np.append(total, np.nan)
-
-    undecided = total - (retired+detected)
-    size = total[-1]
-    
-    '''
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    dates = np.array([i for i in range(days)])
-    ax.plot(dates, retired*1./size, 'r',label="SWAP: 'Not'")
-    ax.plot(dates, detected*1./size, 'b', label="SWAP: 'Smooth'")
-    ax.plot(dates, undecided*1./size, 'k', label="SWAP: Undecided")
-    ax.axhline(y=.35, ls='--', color='r')
-    ax.axhline(y=.5, ls='--', color='b')
-    ax.legend(loc='best')
-    ax.set_xlabel('Days in GZ2')
-    ax.set_ylabel('Number of Subjects')
-    #plt.show()
-    #'''
-
-    # Now get # of "retired" subjects per day from original GZ2
-    # ----------------------------------------------------------------------
-    delta = datetime.timedelta(days=1)
-    starttime = '2009-02-17 00:00:00'
-    get_subjects = False
-
-    try: 
-        F = open('GZ2_cumulative_subjects.pickle','rb')
-        subjects_per_day = cPickle.load(F)
-        subjects_per_day = subjects_per_day[:76]
-        F.close()
     except:
-        subjects_per_day = []
+        print "No 'detected' files found! Aborting..."
+        print ""
+        sys.exit()
 
-    if len(subjects_per_day)!=days: 
-        get_subjects=True
+    try:
+        cmd = "ls %s*/*retired_catalog.txt"%params['survey']
+        cmdout = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+        rejectfiles = cmdout.stdout.read().splitlines()
+
+    except:
+        print "No 'rejected' files found! Aborting..."
+        print ""
+        sys.exit()
+
+    detected, rejected = [], []
+    for dfile, rfile in zip(detectfiles, rejectfiles):
+            
+        with open(dfile,'rb') as f1:
+            stuff = f1.read().splitlines()
+        detected.append(len(stuff))
+
+        with open(rfile,'rb') as f2:
+            stuff = f2.read().splitlines()
+        rejected.append(len(stuff))
+        
+        
+    num_retired = np.column_stack((detected,rejected))
+
+    print "Fetched a grand total of %i subjects detected by GZX"%detected[-1]
+    print "Fetched a grand total of %i subjects rejected by GZX"%rejected[-1]
+    
+    return num_retired    
+
+
+def fetch_num_retired_GZ(num_days, delta=1, condition=25, get_retired=True):
+
+    print "Fetching subjects retired by Galaxy Zoo 2..."
+    
+    # ----------------------------------------------------------------------
+    # Connect to GZ2 database
+
+    connection = mdb.connect('localhost', 'root', '8croupier!', 'gz2')
+    cursor = connection.cursor(mdb.cursors.DictCursor)
+
+    # ----------------------------------------------------------------------
+    # Get number of "retired" subjects per delta t from original GZ2
+
+    starttime = '2009-02-17 00:00:00'
+
+    # Check for a previous version of this file 
+    try: 
+        F = open('GZ2_cumulative_retired_subjects.pickle','rb')
+        cum_retired_per_day = cPickle.load(F)
+        F.close()
+
+    except:
+        cum_retired_per_day = []
+
+
+    # ----------------------------------------------------------------------
+    # Check that the previous version (if any) is up to date
+
+    if len(cum_retired_per_day)!=num_days: 
+        get_retired=True
+
         time = datetime.datetime(2009,02,17,0,0,0)+\
-               datetime.timedelta(days=len(subjects_per_day))
+               datetime.timedelta(days=len(cum_retired_per_day))
         time = time.strftime('%Y-%m-%d %H:%M:%S')
+
     else: time = starttime
 
-    if get_subjects:
-        for d in range(len(subjects_per_day), days):
-            pdb.set_trace()
-            subjects = 0
+
+    # ----------------------------------------------------------------------
+    # If one of those doesn't hold, fetch all (or additional) retired subjects
+
+    if get_retired:
+        
+        delta = datetime.timedelta(days=1)
+
+        for d in range(len(cum_retired_per_day), num_days):
+
             # This will return a list of all subjects and the cumulative number
             # of classifications they've received thus far
             query = ("select t.name, count(t.name) as count "
                      "from task1_full as t "
                      "where t.created_at < '%s' "
-                     "group by t.name order by count(t.name) desc"%time)
+                     "group by t.name "
+                     "having count(t.name) > %i"%(time, condition))
             cursor.execute(query)
             batch = cursor.fetchall()
             
-            # do whatever processing needs to be done
-            # find the number of objects with cumulative classifications > 40
-            for thing in batch:
-                if int(thing['count']) > 25: subjects += 1
-                
+            cum_retired_per_day.append(len(batch))
+
             # convert stringtime to datetime object
             time = datetime.datetime.strptime(time,'%Y-%m-%d %H:%M:%S')
+
             # add one day
             time = time + delta
+
             # convert datetime object to string
             time = time.strftime('%Y-%m-%d %H:%M:%S')
             
-            subjects_per_day.append(subjects)
             
-        F = open('GZ2_cum_subjects_%s.pickle'%config,'w')
-        cPickle.dump(subjects_per_day,F,protocol=2)
+        F = open('GZ2_cumulative_retired_subjects.pickle','w')
+        cPickle.dump(cum_retired_per_day,F,protocol=2)
         F.close()
 
+    print "Fetched a grand total of %i subject retired by GZ2"\
+        %cum_retired_per_day[-1]
+
+    return cum_retired_per_day
+
+
+
+def plot_retired_GZ_vs_SWAP(GZX_retired, GZ2_retired, num_days,outfilename=None, 
+                            classifications_per_day=True, bar=False):
+
+    set_pub()
+
+
+    #--------------------------------------------------------------
     # Make the Figure - Bar Chart
-    #-------------------------------------------------------------------------
-    dates = [i for i in range(days)]
+
+    dates = np.array([i for i in range(num_days)])
     width = 0.35
     
+
     fig = plt.figure(figsize=(15,10))
     ax = fig.add_subplot(111)
 
     if classifications_per_day:
-        #read in classifications per day:
-        data = Table.read('task1_full_classbyday.txt',format='ascii')
+        
+        try: 
+            clicks_per_day = Table.read('task1_full_classbyday.txt',
+                                        format='ascii')
+        except:
+            fetch_classifications_per_day(num_days)
 
         # select only up to whatever day we're currently on
-        batch = data[:days]
+        batch = clicks_per_day[:num_days]
 
         # plot that shit!
-        #gzclass = ax.plot(batch['col4'], color='purple', alpha=.25)
-        #ax.fill_between(dates,0,batch['col4'],facecolor='purple',
-        #                alpha=0.20, label='GZ2 classifications')
-    
-    #rets = ax.bar(dates, retired,width, color='r')
-    #dets = ax.bar(dates, detected, width, color='b', bottom=retired)
-    #tots = ax.bar(dates, detected+retired, width, color='r')
-    #orig = ax.bar(np.array(dates)+width, subjects_per_day, width, color='y')
-    tots = ax.fill_between(dates, detected+retired, color='y', 
-                           alpha=0.6, label='Filtering')
-    orig = ax.fill_between(dates, subjects_per_day, color='b', 
-                           alpha=0.5, label='GZ2')
-    
-    #ax.set_title("Cumulative Number of 'Retired' Subjects: SWAP vs. GZ2")
-    ax.set_title("Cumulative Number of Classified Subjects", fontsize=30, 
-                 weight='bold')
-    ax.set_xlabel("Time (days)",fontsize=26,weight='bold')
-    ax.set_ylabel("Number of Subjects",fontsize=26,weight='bold')
-    #ax.set_yscale("log")
+        gzclass = ax.plot(batch['col4'], color='black', alpha=.25)
+        ax.fill_between(dates,0,batch['col4'],facecolor='black',
+                        alpha=0.20, label='GZ2 classifications')
+                                        
 
-    ax.set_xticks(np.array(dates[::4])+width)
-    ax.set_xticklabels(dates[::4])
-    ax.set_xlim(0,days-1)
+    GZX_retired = np.array(GZX_retired)
+
+    if GZX_retired.ndim == 1:
+        if bar: 
+            tots = ax.bar(dates, GZX_retired, width, color='orange', alpha=0.5)
+
+        else:
+            ax.plot(dates, GZX_retired, color='orange')
+            tots = ax.fill_between(dates, GZX_retired, color='orange',alpha=0.5)
+
+    else:
+        detected = GZX_retired[:,0]
+        rejected = GZX_retired[:,1]
+        
+        if bar:
+            dets = ax.bar(dates, detected, width, color='orange',bottom=retired)
+            rejs = ax.bar(dates, retired, width, color='yellow')
+
+        else:
+            ax.plot(dates, detected+rejected, color='orange')
+            dets = ax.fill_between(dates, rejected, detected+rejected, 
+                                   color='orange',alpha=0.5)
+
+            ax.plot(dates, rejected, color='yellow')
+            rejs = ax.fill_between(dates, rejected, color='yellow', alpha=0.5)
+
+
+    if bar:
+        orig = ax.bar(dates+width, GZ2_retired, width, color='b')
+
+    else:
+        ax.plot(dates, GZ2_retired, color='b', alpha=.65)
+        orig = ax.fill_between(dates, GZ2_retired, color='b', alpha=0.4)
     
-    #ax.legend((dets[0],rets[0], orig[0], gzclass[0]), 
-    #          ("SWAP: 'Smooth'","SWAP: 'Not'", 'GZ2 > 25', 
-    #           'GZ2 classifications'), loc='best')
-    legend = ax.legend(loc='best')
+    
+    #ax.set_title("Cumulative Number of Classified Subjects", weight='bold')
+    ax.set_xlabel("GZ2 Time (days)", fontsize=16, weight='bold')
+    ax.set_ylabel("Number of Subjects", fontsize=16, weight='bold')
+
+    ax.set_xticks(dates[::4]+width)
+    ax.set_xticklabels(dates[::4])
+    ax.set_xlim(0,num_days-1)
+    
+    if GZX_retired.ndim > 1 and classifications_per_day:
+        legend = ax.legend((dets, rejs, orig, gzclass[0]), 
+                           ("GZX: 'Smooth'","GZX: 'Not'", 'GZ2', 
+                            'GZ2 classifications'), loc='best')
+
+    elif GZX_retired.ndim > 1:
+        legend = ax.legend((dets[0], rejs[0], orig[0]), 
+                           ("GZX: 'Smooth'","GZX: 'Not'", 'GZ2'), loc='best')
+
+    elif GZX_retired.ndim == 1 and classifications_per_day:
+        legend = ax.legend((tots, orig, gzclass[0]), 
+                           ('GZX', 'GZ2', 'GZ2 classifications'), loc='best')
+
+    elif GZX_retired.ndim == 1:
+        legend = ax.legend((tots, orig), ('GZX', 'GZ2'), loc='best')
+
     frame = legend.get_frame()
     frame.set_linewidth(2)
     for label in legend.get_texts():
         label.set_fontsize('large')
 
-    #ax.legend((tots[0],orig[0]), ("Filtering", "GZ2"))
-    #plt.savefig('classificationsperday_SWAPvGZ2_%i_%s.png'%(days,config))
     plt.tight_layout()
-    plt.savefig('DDF_classificationsperday.png')
+    plt.savefig('retired_per_day_%s_%idays.png'%(outfilename, num_days))
     plt.show()
 
-    return days
+    return
     
 
 def plot_num_classifications_to_retire(filename, days, config):
@@ -231,180 +329,35 @@ def plot_num_classifications_to_retire(filename, days, config):
     plt.show()
 
 
-def summarize_accuracy(data):
-    GZ2 = data['gz2class']
-    SWAP = data['P']
 
-    result, false_positives, false_negatives = [], [], []
-    match, mismatch = 0, 0
-    swap_not, swap_smooth = 0, 0 
-    smooth_match, not_match = 0, 0
-    
-    for idx, d in enumerate(data):
-        if ('E' in d['gz2class']) and (d['P']>0.95):
-            smooth_match+=1
-            match+=1
-            result.append("smooth_match")
-        elif ('E' not in d['gz2class']) and (d['P']<0.02):
-            not_match+=1
-            match+=1
-            result.append("not_match")
-        elif ('E' in d['gz2class']) and (d['P']<0.02):
-            mismatch +=1
-            swap_not +=1
-            result.append("false_positive")
-        elif ('E' not in d['gz2class']) and (d['P']>0.95):
-            mismatch+=1
-            swap_smooth +=1
-            result.append("false_negative")
-
-    data['result'] = np.array(result)
-
-    percent_match = match*1.0/len(data)
-    percent_mismatch = 1-percent_match
-
-    percent_swap_not = swap_not*1.0/len(data)
-    percent_swap_smooth = swap_smooth*1.0/len(data)
-
-    print "Percent matched:", percent_match
-    print "Percent SWAP said NOT ('incorrectly'):", percent_swap_not
-    print "Percent SWAP said SMOOTH ('incorrectly'):", percent_swap_smooth
-
-    return data
-
-
-def explore_incorrect(data, config):
-
-    false_negatives = data[np.where(data['result'] == 'false_negative')]
-    false_positives = data[np.where(data['result'] == 'false_positive')]
-
-    matches = data[np.where((data['result']=='smooth_match') | 
-                           (data['result']=='not_match'))]
-    mismatch = data[np.where((data['result']=='false_negative') | 
-                            (data['result']=='false_positive'))]
-
-
-    matches_smooth = matches['t01_smooth_or_features_a01_smooth_debiased']
-    matches_feature = matches['t01_smooth_or_features_a02_features_or_disk_debiased']
-    mismatch_smooth = mismatch['t01_smooth_or_features_a01_smooth_debiased']
-    mismatch_feature = mismatch['t01_smooth_or_features_a02_features_or_disk_debiased']
-
-    #pdb.set_trace()
-
-    '''
-    fn_smooth = false_negatives['t01_smooth_or_features_a01_smooth_debiased']
-    fn_feature = false_negatives['t01_smooth_or_features_a02_features_or_disk_debiased']
-    
-    fs_smooth =  false_positives['t01_smooth_or_features_a01_smooth_debiased']
-    fs_feature = false_positives['t01_smooth_or_features_a02_features_or_disk_debiased']
-    #ax.plot(fn_smooth_deb, fn_feature_deb, 'yo', label='false negatives', 
-    #        alpha=.5)
-    #ax.plot(fs_smooth_deb, fs_feature_deb, 'ro', label='false positives', 
-    #        alpha=.5)
-
-    '''
-    
-    fig = plt.figure(figsize=(10,10))
-
-    most = np.max(data['Nclass'])
-    colors1 = (matches['Nclass']*1.0/most).tolist()
-
-    ax1 = fig.add_subplot(211)
-    thing1 = ax1.scatter(matches_smooth, matches_feature, c=colors1,  marker='o')
-    ax1.set_xlim(-.1,1.1)
-    ax1.set_ylim(-.1,1.1)
-
-    ax1.set_ylabel('p_feature debiased')
-    ax1.set_title('Matches')
-
-    ticks = [.9, .6, .2]
-    cbax = fig.colorbar(thing1, ticks=ticks)
-    labels = [str(t*most) for t in ticks]
-    cbax.ax.set_yticklabels(labels)
-    cbax.ax.set_ylabel('Number of Classifications')
-
-    #---------------------------------------------------------------
-    colors2 = (mismatch['Nclass']*1.0/most).tolist()
-
-    ax2 = fig.add_subplot(212)
-    thing2 = ax2.scatter(mismatch_smooth, mismatch_feature, c=colors2, marker='o')
-    ax2.set_xlim(-0.1,1.1)
-    ax2.set_ylim(-0.1,1.1)
-
-    ax2.set_xlabel('p_smooth debiased')
-    ax2.set_ylabel('p_feature debiased')
-    ax2.set_title('Mismatches')
-
-    cbax = fig.colorbar(thing2, ticks=ticks)
-    cbax.ax.set_yticklabels(labels)
-    cbax.ax.set_ylabel('Number of Classifications')
-
-    plt.tight_layout()
-
-    plt.savefig('explore_mismatches_Nclass.png')
-    plt.show()
-
-
+# ----------------------------------------------------------------------#
+# ----------------------------------------------------------------------#
 def main(options, args):   
-    '''
-    I automated this! Booyah.
-    
-    # I've matched zoo2MainAll.fits to a concatenated version of
-    # GZ2_sup_0.75_2009-XX-XX_00:00:00_retired+detected_catalogs
-    
-    #filename = 'GZ2_MainAll_SWAP_run3_5-29-2009.fits'
-    '''
-    # access last time-stamped directory in the sim of interest
-    #directory = subprocess.check_output("ls -rt %s | tail -1"%options.config, 
-    #                                    shell=True).splitlines()[0]
-    #basename ="GZ2_MainAll_SWAP_%s_%s"%(options.config,directory.split('_')[3])
-    directory = 'sup_0.75_run'
-    prefix = 'GZ2_sup_0.75_2009-05-03_00:00:00'
-    combofile = 'GZ2_MainAll_SWAP_run1_05-03-2009'
 
-    #days = plot_retired(options.config)
-    days = plot_retired('sup_0.75')
-    pdb.set_trace()
+    params = fetch_parameters(options.config)
 
-    pwd = os.getcwd()
-    try:
-        joined = Table.read('%s.fits'%basename)
-    except:
-        print "Making joined catalog"
-        # Prepare "retired" and "detected" catalogs -------------------------
-        detect = '%s/%s/%s_detected_catalog.txt'%(directory,prefix,prefix)
-        retire = '%s/%s/%s_retired_catalog.txt'%(directory,prefix,prefix)
-        
-        # read in the files and concatenate along rows
-        detected = Table.read(detect, format='ascii')
-        retired = Table.read(retire, format='ascii')
-        combined = vstack((detected,retired))
-        
-        # Now, match it against zoo2MainAll.fits
-        #zoo2MainAll = Table.read('zoo2MainAll_urls.fits')
-        #zoo2MainAll['zooid']=zoo2MainAll['dr7objid']
+    num_days = fetch_num_days(params)
 
-        #joined = join(zoo2MainAll, combined, keys='zooid')
-        
-        #Table.write(joined, '%s.fits'%basename)
-    
-
-    # Now go to work --------------------------------------------------------
-    #plot_num_classifications_to_retire(joined, days, options.config)
-
-    try: results = Table.read('%s_results.fits'%basename)
-    except:
-        print "This should already exist..."
-        pdb.set_trace()
-        results = summarize_accuracy(joined)
-        Table.write(results, '%s_results.fits'%filename)
-
-    explore_incorrect(results, options.config)
+    if options.combined_subjects:
+        GZX_retired_subjects = fetch_num_retired_SWAP(params)   
+    else:
+        GZX_retired_subjects = fetch_num_detected_rejected_SWAP(params)
 
 
+    GZ2_retired_subjects = fetch_num_retired_GZ(num_days)
+
+    plot_retired_GZ_vs_SWAP(GZX_retired_subjects, GZ2_retired_subjects, 
+                            num_days, outfilename="sup_0.75")
+
+
+
+# ----------------------------------------------------------------------#
+# ----------------------------------------------------------------------#
 if __name__ == '__main__':
     parser = OptionParser()
     parser.add_option("-c", dest="config", default=None)
+    parser.add_option("-s", "--combo", dest="combined_subjects",
+                      action='store_false', default=True)
     
     (options, args) = parser.parse_args()
 

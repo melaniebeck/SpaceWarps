@@ -98,6 +98,7 @@ def SWAP(argv):
         print swap.SW_hello
         print swap.doubledashedline
         print "SWAP: taking instructions from",configfile
+
     else:
         print SWAP.__doc__
         return
@@ -459,17 +460,24 @@ def SWAP(argv):
         # classifications. Note that what is needed here is the ZooID,
         # not the subject ID:
 
-        new_retirementfile = swap.get_new_filename(tonights.parameters,\
-                                                   'retire_these')
+        new_retirefile = swap.get_new_filename(tonights.parameters,
+                                               'retire_these')
         print "SWAP: saving retiree subject Zooniverse IDs..."
-        N = swap.write_list(sample,new_retirementfile,item='retired_subject')
-        print "SWAP: "+str(N)+" lines written to "+new_retirementfile
+        N = swap.write_list(sample,new_retirefile,item='retired_subject')
+        print "SWAP: "+str(N)+" lines written to "+new_retirefile
 
-        # Also print out lists of detections etc! These are urls of images.
+
         # ----------------------------------------------------------------
-        new_samplefile = swap.get_new_filename(tonights.parameters,'candidates')
-        print "SWAP: saving lens candidates..."
-        N = swap.write_list(sample,new_samplefile,item='candidate')
+        # Also print out lists of detections etc! These are urls of images.
+
+        new_samplefile = swap.get_new_filename(tonights.parameters,'rejected')
+        print "SWAP: saving rejected subjects..."
+        N = swap.write_list(sample, new_samplefile, item='rejected')
+        print "SWAP: "+str(N)+" lines written to "+new_samplefile
+
+        new_samplefile = swap.get_new_filename(tonights.parameters,'detected')
+        print "SWAP: saving detected subjects..."
+        N = swap.write_list(sample,new_samplefile,item='detected')
         print "SWAP: "+str(N)+" lines written to "+new_samplefile
 
         # Now save the training images, for inspection:
@@ -491,48 +499,56 @@ def SWAP(argv):
         N = swap.write_list(sample,new_samplefile,item='false_negative')
         print "SWAP: "+str(N)+" lines written to "+new_samplefile
 
-        # Also write out catalogs of subjects, including the ZooID, subject ID,
-        # how many classifications, and probability:
+
         # -------------------------------------------------------------------
+        #####   THESE ARE CATALOGS THAT SPACEWARPS WAS INTERESTED IN   #####
+
         catalog = swap.get_new_filename(tonights.parameters,'candidate_catalog')
         print "SWAP: saving catalog of high probability subjects..."
-        Nlenses,Nsubjects = swap.write_catalog(sample,catalog,thresholds,
-                                               kind='test')
-        print "SWAP: From "+str(Nsubjects)+" subjects classified,"
-        print "SWAP: "+str(Nlenses)+" candidates (with P > rejection) "\
-            "written to "+catalog
+        N, Ntot = swap.write_catalog(sample,catalog,thresholds, kind='test')
+        print "SWAP: From "+str(Ntot)+" subjects classified,"
+        print "SWAP: "+str(N)+" candidates (with P > rejection) written to "\
+            +catalog
 
         catalog = swap.get_new_filename(tonights.parameters,'sim_catalog')
         print "SWAP: saving catalog of high probability subjects..."
-        Nsims,Nsubjects = swap.write_catalog(sample,catalog,thresholds,
-                                             kind='sim')
-        print "SWAP: From "+str(Nsubjects)+" subjects classified,"
-        print "SWAP: "+str(Nsims)+" sim 'candidates' (with P > "\
-            "rejection) written to "+catalog
+        N, Ntot = swap.write_catalog(sample,catalog,thresholds, kind='sim')
+        print "SWAP: From "+str(Ntot)+" subjects classified,"
+        print "SWAP: "+str(N)+" sim 'candidates' (with P > rejection) "\
+            "written to "+catalog
 
         catalog = swap.get_new_filename(tonights.parameters,'dud_catalog')
         print "SWAP: saving catalog of high probability subjects..."
-        Nduds,Nsubjects = swap.write_catalog(sample,catalog,thresholds,
-                                             kind='dud')
-        print "SWAP: From "+str(Nsubjects)+" subjects classified,"
-        print "SWAP: "+str(Nduds)+" dud 'candidates' (with P > "\
-            "rejection) written to "+catalog
-
-        catalog =swap.get_new_filename(tonights.parameters,'retired_catalog')
-        print "SWAP: saving catalog of retired subjects..."
-        Nretired, Nsubjects = swap.write_catalog(sample,catalog,thresholds,
-                                                 kind='rejected')
-        print "SWAP: From "+str(Nsubjects)+" subjects classified,"
-        print "SWAP: "+str(Nretired)+" retired (with P < rejection) "\
+        N,Ntot = swap.write_catalog(sample,catalog,thresholds,kind='dud')
+        print "SWAP: From "+str(Ntot)+" subjects classified,"
+        print "SWAP: "+str(N)+" dud 'candidates' (with P > rejection) "\
             "written to "+catalog
-       
-        catalog =swap.get_new_filename(tonights.parameters,'detected_catalog')
+
+
+        # ------------------------------------------------------------------
+        ##########    THESE ARE CATALOGS I'M INTERESTED IN    ##############
+
+        catalog = swap.get_new_filename(tonights.parameters,'detected_catalog')
         print "SWAP: saving catalog of detected subjects..."
-        Ndetected, Nsubjects = swap.write_catalog(sample,catalog,thresholds,
-                                                  kind='detected')
-        print "SWAP: From "+str(Nsubjects)+" subjects classified,"
-        print "SWAP: "+str(Ndetected)+" detected (with P > acceptance) "\
-            "written to "+catalog        
+        N1, Ntot = swap.write_catalog(sample, catalog,thresholds,kind='detected')
+        print "SWAP: From "+str(Ntot)+" subjects classified"
+        print "SWAP: "+str(N1)+" detected subjects written to "+catalog 
+
+        catalog = swap.get_new_filename(tonights.parameters,'rejected_catalog')
+        print "SWAP: saving catalog of rejected subjects..."
+        N2, Ntot = swap.write_catalog(sample, catalog,thresholds,kind='rejected')
+        print "SWAP: From "+str(Ntot)+" subjects classified"
+        print "SWAP: "+str(N2)+" rejected subjects written to"+catalog
+
+        catalog = swap.get_new_filename(tonights.parameters,'retired_catalog')
+        print "SWAP: saving catalog of retired subjects..."
+        N3, Ntot = swap.write_catalog(sample, catalog, thresholds,kind='retired')
+        print "SWAP: From "+str(Ntot)+" subjects classified"
+        print "SWAP: "+str(N3)+" retired subjects (with P < rejection OR "\
+            "P > detection) written to "+catalog
+      
+        equal = N1+N2==N3
+        print "SWAP: SANITY CHECK! %i + %i = %i? %s"%(N1,N2,N3, equal)
 
 
     # ------------------------------------------------------------------

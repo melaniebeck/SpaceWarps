@@ -110,13 +110,14 @@ def write_list(sample, filename, item=None, source=None):
 
         if item == 'retired_subject':
             if subject.state == 'inactive':
-                if source == 'ML' and subject.retiredby == 'machine':
-                    string = subject.ZooID
-                elif subject.retiredby == 'swap':
-                    string = subject.ZooID
+                string = subject.ZooID
 
-        elif item == 'candidate':
+        elif item == 'detected':
             if subject.kind == 'test' and subject.status == 'detected':
+                string = subject.location
+
+        elif item == 'rejected':
+            if subject.kind == 'test' and subject.status == 'rejected':
                 string = subject.location
 
         elif item == 'true_positive':
@@ -155,8 +156,7 @@ def read_list(filename):
 
 def write_catalog(sample,filename,thresholds,kind='test',source=None):
 
-    Nsubjects = 0
-    Nlenses = 0
+    Nsubset, Nsubjects = 0, 0
 
     # Open a new catalog and write a header:
     F = open(filename,'w')
@@ -166,52 +166,34 @@ def write_catalog(sample,filename,thresholds,kind='test',source=None):
         subject = sample.member[ID]
         P = subject.mean_probability
 
-        if source == 'ML':
-            if kind=='rejected' and subject.state == 'inactive' and \
-               subject.retiredby == 'machine':
-                output = (subject.ZooID, P, subject.exposure, subject.location)
-                # Write a new line:
-                F.write('%s  %9.7f  %s       %s\n'\
-                        %output)
-                Nlenses += 1 
-
-            elif kind=='detected' and subject.status == 'detected' and \
-                 subject.retiredby == 'machine':
+        """
+        The first two take care of when kind == retired, rejected, detected
+        """
+        # Perhaps you want a catalog of ALL rejected & detected subjects...
+        if kind == 'retired':
+            if subject.status != 'undecided':
                 output = (subject.ZooID, P, subject.exposure, subject.location)
                 F.write('%s  %9.7f  %s       %s\n'%output)
-                Nlenses += 1            
+                Nsubset += 1
                 
+        # Perhaps you want ONLY the rejected or detected objects... 
+        elif subject.status == kind:
+            output = (subject.ZooID, P, subject.exposure, subject.location)
+            F.write('%s  %9.7f  %s       %s\n'%output)           
+            Nsubset += 1
+            
+        # Perhaps you want the possible candidates (P > rejected)
         else:
-            if kind=='rejected' and subject.state == 'inactive' and \
-               subject.retiredby == 'swap':
-                output = (subject.ZooID, P, subject.exposure, subject.location)
-                # Write a new line:
-                F.write('%s  %9.7f  %s       %s\n'\
-                        %output)
-                Nlenses += 1 
-                
-            elif kind=='detected' and subject.status == 'detected' and \
-                 subject.retiredby == 'swap':
+            if P > thresholds['rejection'] and subject.kind == kind:
                 output = (subject.ZooID, P, subject.exposure, subject.location)
                 F.write('%s  %9.7f  %s       %s\n'%output)
-                Nlenses += 1            
-                
-            elif P > thresholds['rejection'] and subject.kind == kind:
-                
-                #zooid = subject.ZooID
-                #png = subject.location
-                #Nclass = subject.exposure
-                output = (subject.ZooID, P, subject.exposure, subject.location)
-                # Write a new line:
-                F.write('%s  %9.7f  %s       %s\n'\
-                        %output)
-                Nlenses += 1
-                
+                Nsubset += 1
+
         Nsubjects += 1
 
     F.close()
 
-    return Nlenses,Nsubjects
+    return Nsubset,Nsubjects
 
 # ----------------------------------------------------------------------------
 
@@ -235,11 +217,12 @@ def get_new_filename(pars,flavour,source=None):
         ext = 'png'
 
     # catalog filenames
-    elif flavour in ['retire_these', 'candidates', 'training_true_positives', 
-                     'training_false_positives', 'training_true_negatives', 
-                     'training_false_negatives', 'candidate_catalog', 
+    elif flavour in ['retire_these', 'detected', 'rejected', 
+                     'training_true_positives', 'training_false_positives', 
+                     'training_true_negatives', 'training_false_negatives', 
                      'sim_catalog', 'dud_catalog', 'retired_catalog', 
-                     'detected_catalog']:
+                     'detected_catalog', 'rejected_catalog', 
+                     'candidate_catalog']:
         ext = 'txt'
         folder = pars['dir']
         
