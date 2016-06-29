@@ -1,4 +1,5 @@
 # ======================================================================
+### THIS SCRIPT MUST BE GENERALIZED FOR ANY SUBJECT LABEL
 
 import numpy as np
 import os,sys,datetime

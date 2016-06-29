@@ -1,5 +1,5 @@
 # ======================================================================
-
+### THIS SCRIPT MUST BE GENERALIZED FOR ANY SUBJECT LABEL
 import swap
 
 import numpy as np

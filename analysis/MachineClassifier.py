@@ -74,6 +74,10 @@ def MachineClassifier(options, args):
     random_file.close();
     np.random.set_state(random_state);
 
+
+    time = tonights.parameters['start']
+    print time
+
     # Get the machine threshold (make retirement decisions)
     threshold = tonights.parameters['machine_threshold']
     prior = tonights.parameters['prior']
@@ -223,7 +227,7 @@ def MachineClassifier(options, args):
             # any scikit-learn machine will do. However, non-sklearn machines..
             # That will be a bit trickier! (i.e. Phil's conv-nets)
             general_model = GridSearchCV(estimator=RF(n_estimators=30), 
-                                         param_grid=params,
+                                         param_grid=params, n_jobs=-1,
                                          error_score=0, scoring=metric, cv=cv) 
             
             # Train the model -- k-fold cross validation is embedded
@@ -236,7 +240,6 @@ def MachineClassifier(options, args):
             # Test "accuracy" (metric of choice) on validation sample
             score = trained_model.score(valid_features, valid_labels)
 
-            time = dt.datetime.today().strftime('%Y-%m-%d')
             ratio = np.sum(train_labels==1) / len(train_labels)
 
             MLagent.record_training(model_described_by=
@@ -379,17 +382,17 @@ def MachineClassifier(options, args):
         tonights.parameters['metadatafile'] = metadatafile
 
 
+    # UPDATE CONFIG FILE with pickle filenames, dir/trunk, and (maybe) new day
+    # ----------------------------------------------------------------------
+    configfile = config.replace('startup','update')
 
-    # Update configfile to reflect Machine additions
-    # -----------------------------------------------------------------------
-    configfile = 'update.config'
-
+    # Random_file needs updating, else we always start from the same random
+    # state when update.config is reread!
     random_file = open(tonights.parameters['random_file'],"w");
     random_state = np.random.get_state();
     cPickle.dump(random_state,random_file);
     random_file.close();
     swap.write_config(configfile, tonights.parameters)
-    
 
     return
 

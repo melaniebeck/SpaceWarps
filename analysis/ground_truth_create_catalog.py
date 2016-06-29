@@ -66,13 +66,12 @@ def GZ2_label_SMOOTH_NOT(GZ2_subjects):
             #label = truth['SMOOTH']
             label.append(truth['SMOOTH'])
             
-        elif d == majority:
-            #label = truth['NOT']
-            label.append(truth['NOT'])
+        #elif d == majority:
+        #    #label = truth['NOT']
+        #    label.append(truth['NOT'])
             
         else: 
-            #label = truth['UNKNOWN']
-            label.append(truth['UNKNOWN'])
+            label.append(truth['NOT'])
 
     print "GZ2 labels complete."
     return np.array(label)

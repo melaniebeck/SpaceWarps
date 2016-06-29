@@ -1,7 +1,6 @@
 # ======================================================================
-
+### THIS SCRIPT MUST BE GENERALIZED FOR ANY SUBJECT LABEL
 import swap
-
 import numpy as np
 import pylab as plt
 import pdb
@@ -103,6 +102,7 @@ class Agent(object):
         self.NL = 2 + pars['skepticism']
         self.N = 0
         self.NT = 0
+
         # back-compatibility:
         self.contribution = 0.0*self.update_skill() # This call also sets self.skill, internally
 
@@ -141,7 +141,8 @@ class Agent(object):
 
         return self.skill
 
-# ----------------------------------------------------------------------# Updates confusion matrix with latest result:
+# ----------------------------------------------------------------------
+# Updates confusion matrix with latest result:
 #   eg.  collaboration.member[Name].heard(it_was='LENS',actually_it_was='NOT',with_probability=P,ignore=False)
 
     def heard(self,it_was=None,actually_it_was=None,with_probability=1.0,
@@ -151,8 +152,6 @@ class Agent(object):
             pass
 
         else:
-            print actually_it_was
-
             if actually_it_was=='SMOOTH':
                 if not ignore:
                     self.PL = (self.PL*self.NL + (it_was==actually_it_was))\
@@ -177,10 +176,12 @@ class Agent(object):
             # You will only find yourself in this loop if 
             # "supervised_and_unsupervised" is True
             elif actually_it_was=='UNKNOWN':
-                increment = with_probability
-                #increment = 2e-2
+
+                #increment = float(with_probability)/1e4
 
                 if it_was=='SMOOTH':
+                    # This shouldn't be here...
+                    increment = 1.0
                     if not ignore:
                         self.PL = (self.PL*self.NL + increment)/(self.NL + 
                                                                  increment)
@@ -196,7 +197,8 @@ class Agent(object):
                     self.ND += (1.0 - increment)
 
                 elif it_was=='NOT':
-
+                    # This shouldn't be here...
+                    increment = 0.0
                     if not ignore:
                         self.PL = (self.PL*self.NL + 0.0)/(self.NL + increment)
                         self.PL = np.min([self.PL,swap.PLmax])
@@ -285,6 +287,7 @@ class Agent(object):
 # Get a realization for agent's PL distribution
 
     def get_PL_realization(self,Ntrajectory):
+
         NL_correct=self.PL*self.NL;
         NL_correct_realize=np.random.binomial(self.NL,self.PL,size=Ntrajectory);
         PL_realize=(NL_correct_realize*1.0)/(self.NL);
@@ -299,6 +302,7 @@ class Agent(object):
 # Get a realization for agent's PD distribution
 
     def get_PD_realization(self,Ntrajectory):
+
         ND_correct=self.PD*self.ND;
         ND_correct_realize=np.random.binomial(self.ND,self.PD,size=Ntrajectory);
         PD_realize=(ND_correct_realize*1.0)/(self.ND);

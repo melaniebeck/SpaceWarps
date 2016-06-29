@@ -1,4 +1,5 @@
 # ======================================================================
+### THIS SCRIPT MUST BE GENERALIZED FOR ANY SUBJECT LABEL
 import swap
 import numpy as np
 import os,sys,datetime,pdb
@@ -101,7 +102,7 @@ class MySQLdb(object):
         # --- if answer_id == 1, smooth
         # ---    answer_id == 2, features/disk
         # ---    answer_id == 3, star/artifact
-        if classification['answer_id'] == 1: result = 'SMOOTH'
+        if classification['answer_id'] == 2: result = 'FEAT'
         else: result = 'NOT'
 
         idx = np.where(subjects['SDSS_id']==long(ZooID))
@@ -118,15 +119,15 @@ class MySQLdb(object):
         if subject['Nair_label']!=-1:
             category = 'training'
 
-            if subject['Nair_label']==1:
+            if subject['Nair_label']==0:
                 flavor='lensing cluster'
                 kind='sim'
-                truth='SMOOTH'
+                truth='NOT'
 
-            elif subject['Nair_label']==0:
+            elif subject['Nair_label']==1:
                 flavor='dud'
                 kind='dud'
-                truth='NOT'
+                truth='SMOOTH'
         else:                 
             category = 'test'
             kind = 'test'

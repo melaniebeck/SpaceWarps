@@ -5,6 +5,8 @@ import pdb
 
 #F = open('GZ2_sup_0.75_bureau.pickle','rb')
 F = open('sup_run4/GZ2_sup_run4_bureau.pickle','rb')
+#F = open('sup_run3/GZ2_sup_run3_bureau.pickle')
+#F = open('GZ2_initialP_0.6_bureau.pickle')
 bureau = cPickle.load(F)
 F.close()
 agent_ids = bureau.list()
@@ -18,6 +20,7 @@ number_correct_smooths, number_correct_nots = [], []
 total_number_correct, total_number_incorrect = [], []  
 more_than_none, right_away = [], [] 
 
+no_training = 0
 for ID in agent_ids:
     agent = bureau.member[ID]
     
@@ -34,7 +37,7 @@ for ID in agent_ids:
     number_of_images_seen.append(len(traininghistory))
     number_of_training_seen.append(len(training))
 
-    print training
+    #print training
 
     if len(training) > 0:
         more_than_none.append(len(training))
@@ -61,8 +64,13 @@ for ID in agent_ids:
         total_number_incorrect.append(len(training) - total)
 
     else:
-        pdb.set_trace()
+        no_training += 1
+        #pdb.set_trace()
 
+
+print "total # of users:", total_number_of_users
+print "users who didn't see training:", no_training
+pdb.set_trace()
 
 print "%5.3f users saw at least one training image:"%(len(more_than_none)*1.0/total_number_of_users)
 print "%i users saw at least 1 training image within the first 5 images"%len(right_away)

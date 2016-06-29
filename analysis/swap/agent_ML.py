@@ -132,6 +132,7 @@ class Agent_ML(object):
 
         return
 
+
     def record_evaluation(self,accuracy_score=None,precision_score=None,
                           recall_score=None,at_time=None):
 
@@ -141,6 +142,7 @@ class Agent_ML(object):
         self.evaluationhistory['at_time'].append(at_time)
         
         return 
+
 
     def is_trained(self, metric):
         # LEARNING CURVE -- find where accuracy plateaus

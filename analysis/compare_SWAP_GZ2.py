@@ -9,6 +9,7 @@ from optparse import OptionParser
 import swap
 import glob
 
+from ground_truth_create_catalog import find_indices
 from figure_styles import set_pub
 
 
@@ -28,85 +29,65 @@ def fetch_num_days(params):
 
     return int(days)
 
-
-def fetch_num_retired_SWAP(params):   
-
-    print "Fetching subjects classified by GZX..."
-
-    retired = []
-    
-    cmd = "ls %s*/*retire_these.txt"%params['survey']
-
-    # Pull up all "retired" files from each day of this run
-    cmdout = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
-    retirefiles = cmdout.stdout.read().splitlines()
-   
-    for retirefile in retirefiles:
-        # read in the retirefile
-        with open(retirefile,'rb') as f:
-            stuff = f.read().splitlines()
-            
-        retired.append(len(stuff))
-
-    print "Fetched a grand total of %i subjects classififed by GZX"%retired[-1]
-    return np.array(retired)
-
-
-def fetch_num_detected_rejected_SWAP(params):
-    
+       
+        
+def fetch_filelist(params, kind='detected'):
+     
     # ------------------------------------------------------------------
     # Load up detected subjects... 
-    print "Fetching subjects detected and rejected by GZX..."
+    print "Fetching list of %s files created by GZX..."%kind
 
     try:
-        cmd = "ls %s*/*detected_catalog.txt"%params['survey']
+        cmd = "ls %s*/*%s_catalog.txt"%(params['survey'], kind)
         cmdout = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
-        detectfiles = cmdout.stdout.read().splitlines()
-
+        filelist = cmdout.stdout.read().splitlines()
+        
     except:
-        print "No 'detected' files found! Aborting..."
+        print "No '%s' files found! Aborting..."%kind
         print ""
         sys.exit()
+        
+    return filelist
 
-    try:
-        cmd = "ls %s*/*retired_catalog.txt"%params['survey']
-        cmdout = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
-        rejectfiles = cmdout.stdout.read().splitlines()
 
-    except:
-        print "No 'rejected' files found! Aborting..."
-        print ""
-        sys.exit()
-
-    detected, rejected = [], []
-    for dfile, rfile in zip(detectfiles, rejectfiles):
-            
-        with open(dfile,'rb') as f1:
+def fetch_number_of_subjects(filelist, kind='detected'):
+    # Fetch the NUMBER detected/rejected 
+    # Don't care about anything else
+    
+    lengthlist = []
+    
+    for filename in filelist:
+        
+        with open(filename,'rb') as f1:
             stuff = f1.read().splitlines()
-        detected.append(len(stuff))
-
-        with open(rfile,'rb') as f2:
-            stuff = f2.read().splitlines()
-        rejected.append(len(stuff))
-        
-        
-    num_retired = np.column_stack((detected,rejected))
-
-    print "Fetched a grand total of %i subjects detected by GZX"%detected[-1]
-    print "Fetched a grand total of %i subjects rejected by GZX"%rejected[-1]
+        lengthlist.append(len(stuff))
     
-    return num_retired    
+    try:
+        print "Fetched a grand total of %i subjects %s by GZX"\
+            %(lengthlist[-1],kind)
+        return lengthlist 
 
+    except:
+        print "Could not fetch any %s subjects by GZX. Aborting..."%kind
+        sys.exit()
+    
 
-def fetch_num_retired_GZ(num_days, delta=1, condition=25, get_retired=True):
+    
+def fetch_classifications(filename):
+   
+    try:
+        dat = Table.read(filename,format='ascii')
+    except:
+        print "Did not find %s"%filename
+        sys.exit()
+    else:
+        return dat
 
+   
+def fetch_num_retired_GZ2(num_days, delta=1, condition=25, get_retired=True,
+                          expert=False):
+        
     print "Fetching subjects retired by Galaxy Zoo 2..."
-    
-    # ----------------------------------------------------------------------
-    # Connect to GZ2 database
-
-    connection = mdb.connect('localhost', 'root', '8croupier!', 'gz2')
-    cursor = connection.cursor(mdb.cursors.DictCursor)
 
     # ----------------------------------------------------------------------
     # Get number of "retired" subjects per delta t from original GZ2
@@ -122,7 +103,6 @@ def fetch_num_retired_GZ(num_days, delta=1, condition=25, get_retired=True):
     except:
         cum_retired_per_day = []
 
-
     # ----------------------------------------------------------------------
     # Check that the previous version (if any) is up to date
 
@@ -135,23 +115,38 @@ def fetch_num_retired_GZ(num_days, delta=1, condition=25, get_retired=True):
 
     else: time = starttime
 
+    
+    # ----------------------------------------------------------------------
+    # Connect to GZ2 database
+
+    connection = mdb.connect('localhost', 'root', '8croupier!', 'gz2')
+    cursor = connection.cursor(mdb.cursors.DictCursor)
+
 
     # ----------------------------------------------------------------------
     # If one of those doesn't hold, fetch all (or additional) retired subjects
 
     if get_retired:
-        
+        if expert: 
+            table = "task1_expert"
+            outfile = 'GZ2_cumulative_retired_subjects_expert.pickle'
+        else:
+            table = "task1_full"
+            outfile = 'GZ2_cumulative_retired_subjects.pickle'
+            
+
         delta = datetime.timedelta(days=1)
 
         for d in range(len(cum_retired_per_day), num_days):
 
             # This will return a list of all subjects and the cumulative number
             # of classifications they've received thus far
+
             query = ("select t.name, count(t.name) as count "
-                     "from task1_full as t "
+                     "from %s as t "
                      "where t.created_at < '%s' "
                      "group by t.name "
-                     "having count(t.name) > %i"%(time, condition))
+                     "having count(t.name) > %i"%(table, time, condition))
             cursor.execute(query)
             batch = cursor.fetchall()
             
@@ -166,8 +161,8 @@ def fetch_num_retired_GZ(num_days, delta=1, condition=25, get_retired=True):
             # convert datetime object to string
             time = time.strftime('%Y-%m-%d %H:%M:%S')
             
-            
-        F = open('GZ2_cumulative_retired_subjects.pickle','w')
+        
+        F = open(outfile,'w')
         cPickle.dump(cum_retired_per_day,F,protocol=2)
         F.close()
 
@@ -178,16 +173,16 @@ def fetch_num_retired_GZ(num_days, delta=1, condition=25, get_retired=True):
 
 
 
-def plot_retired_GZ_vs_SWAP(GZX_retired, GZ2_retired, num_days,outfilename=None, 
-                            classifications_per_day=True, bar=False):
+def plot_retired_GZ_vs_SWAP(GZX_retired, GZ2_retired, num_days,
+                            outfilename=None, classifications_per_day=True, 
+                            bar=False, expert=False):
 
     set_pub()
-
 
     #--------------------------------------------------------------
     # Make the Figure - Bar Chart
 
-    dates = np.array([i for i in range(num_days)])
+    dates = np.arange(num_days)
     width = 0.35
     
 
@@ -195,23 +190,26 @@ def plot_retired_GZ_vs_SWAP(GZX_retired, GZ2_retired, num_days,outfilename=None,
     ax = fig.add_subplot(111)
 
     if classifications_per_day:
-        
+        if expert: table = 'task1_expert'
+        else: table = 'task1_full'
+
         try: 
-            clicks_per_day = Table.read('task1_full_classbyday.txt',
+            clicks_per_day = Table.read('%s_classbyday.txt'%table,
                                         format='ascii')
         except:
-            fetch_classifications_per_day(num_days)
+            fetch_classifications_per_day(num_days, expert=expert)
 
         # select only up to whatever day we're currently on
         batch = clicks_per_day[:num_days]
 
         # plot that shit!
-        gzclass = ax.plot(batch['col4'], color='black', alpha=.25)
-        ax.fill_between(dates,0,batch['col4'],facecolor='black',
-                        alpha=0.20, label='GZ2 classifications')
+        ax.plot(batch['col4'], color='black', alpha=.25)
+        gzclass = ax.fill_between(dates,0,batch['col4'],facecolor='black',
+                                  alpha=0.20, label='GZ2 classifications')
                                         
 
     GZX_retired = np.array(GZX_retired)
+    GZ2_retired = GZ2_retired[:len(GZX_retired[0,:])]
 
     if GZX_retired.ndim == 1:
         if bar: 
@@ -222,8 +220,8 @@ def plot_retired_GZ_vs_SWAP(GZX_retired, GZ2_retired, num_days,outfilename=None,
             tots = ax.fill_between(dates, GZX_retired, color='orange',alpha=0.5)
 
     else:
-        detected = GZX_retired[:,0]
-        rejected = GZX_retired[:,1]
+        detected = GZX_retired[0,:]
+        rejected = GZX_retired[1,:]
         
         if bar:
             dets = ax.bar(dates, detected, width, color='orange',bottom=retired)
@@ -247,25 +245,25 @@ def plot_retired_GZ_vs_SWAP(GZX_retired, GZ2_retired, num_days,outfilename=None,
     
     
     #ax.set_title("Cumulative Number of Classified Subjects", weight='bold')
-    ax.set_xlabel("GZ2 Time (days)", fontsize=16, weight='bold')
-    ax.set_ylabel("Number of Subjects", fontsize=16, weight='bold')
+    ax.set_xlabel("Days in GZ2 project", fontsize=16, weight='bold')
+    ax.set_ylabel("Counts", fontsize=16, weight='bold')
 
     ax.set_xticks(dates[::4]+width)
     ax.set_xticklabels(dates[::4])
     ax.set_xlim(0,num_days-1)
     
     if GZX_retired.ndim > 1 and classifications_per_day:
-        legend = ax.legend((dets, rejs, orig, gzclass[0]), 
+        legend = ax.legend((dets, rejs, orig, gzclass), 
                            ("GZX: 'Smooth'","GZX: 'Not'", 'GZ2', 
-                            'GZ2 classifications'), loc='best')
+                            'GZ2 user votes'), loc='best')
 
     elif GZX_retired.ndim > 1:
         legend = ax.legend((dets[0], rejs[0], orig[0]), 
                            ("GZX: 'Smooth'","GZX: 'Not'", 'GZ2'), loc='best')
 
     elif GZX_retired.ndim == 1 and classifications_per_day:
-        legend = ax.legend((tots, orig, gzclass[0]), 
-                           ('GZX', 'GZ2', 'GZ2 classifications'), loc='best')
+        legend = ax.legend((tots, orig, gzclass), 
+                           ('GZX', 'GZ2', 'GZ2 user votes'), loc='best')
 
     elif GZX_retired.ndim == 1:
         legend = ax.legend((tots, orig), ('GZX', 'GZ2'), loc='best')
@@ -280,7 +278,29 @@ def plot_retired_GZ_vs_SWAP(GZX_retired, GZ2_retired, num_days,outfilename=None,
     plt.show()
 
     return
-    
+
+
+def plot_GZX_evaluation(num_days, accuracy, precision, recall, outfile):
+
+    set_pub()
+
+    days = np.arange(num_days)
+
+    fig = plt.figure(figsize=(8,8))
+    ax = fig.add_subplot(111)
+
+    ax.plot(days, accuracy, c='r', label='Accuracy')
+    ax.plot(days, precision, c='g', label='Precision')
+    ax.plot(days, recall, c='b', label='Recall')
+    ax.legend(loc='best')
+
+    ax.set_xlabel('Days in GZ2 project',fontsize=16,fontweight='bold')
+    ax.set_ylabel('Per cent',fontsize=16,fontweight='bold')
+
+    plt.savefig("GZX_evaluation_%s.png"%outfile)
+    plt.show()
+    plt.close()
+
 
 def plot_num_classifications_to_retire(filename, days, config):
 
@@ -330,25 +350,121 @@ def plot_num_classifications_to_retire(filename, days, config):
 
 
 
+def generate_SWAP_eval_report(detectedfilelist, rejectedfilelist, subjects):
+
+    recall, precision, accuracy = [], [], []
+    
+    for dfile, rfile in zip(detectedfilelist, rejectedfilelist):
+        
+        predicted_smooth = fetch_classifications(dfile)
+        predicted_not = fetch_classifications(rfile)
+        
+        gzx = vstack([predicted_smooth['zooid','P','Nclass'], 
+                      predicted_not['zooid','P','Nclass']])
+        
+        # For each subject in detected/rejected, find label in subjects
+        result = find_indices(subjects['SDSS_id'], gzx['zooid'])
+        gz2 = subjects[result]
+        
+        actually_smooth = gz2[gz2['GZ2_label'] == 1]
+        actually_not = gz2[gz2['GZ2_label'] != 1]
+        
+        
+        # True Positives (predicted 'smooth' == actually smooth)
+        tps_idx = find_indices(subjects['SDSS_id'],
+                               predicted_smooth['zooid'])
+        tps = sum(subjects['GZ2_label'][tps_idx]==1)
+        
+        # False Positives (predicted 'smooth but actually NOT)
+        fps = sum(subjects['GZ2_label'][tps_idx]!=1)
+        
+        # True Negatives (predicted 'not' == actually not)
+        tns_idx = find_indices(subjects['SDSS_id'], predicted_not['zooid'])
+        tns = sum(subjects['GZ2_label'][tns_idx]!=1)
+        
+        # False Negatives (predicted 'not' but actually SMOOTH)
+        fns = sum(subjects['GZ2_label'][tns_idx]==1)
+        
+        if predicted_smooth and predicted_not: 
+            recall.append(float(tps)/float(len(actually_smooth)))
+            precision.append(float(tps)/float(len(predicted_smooth)))
+            accuracy.append(float(tps + tns)/float(tps+fps+tns+fns))
+        else:
+            recall.append(0.)
+            precision.append(0.)
+            accuracy.append(0.)          
+            
+    evalution = Table(data=(accuracy, precision, recall), 
+                      names=('accuracy','precision','recall'))
+    evaluation.write('GZXevalution_%s.txt'%outname, format='ascii')
+
+    return accuracy, precision, recall
+
+
+
 # ----------------------------------------------------------------------#
 # ----------------------------------------------------------------------#
 def main(options, args):   
 
     params = fetch_parameters(options.config)
-
     num_days = fetch_num_days(params)
 
-    if options.combined_subjects:
-        GZX_retired_subjects = fetch_num_retired_SWAP(params)   
+    # ---------------------------------------------------------------------
+    # Fetch lists of relevant filenames over the course of the run
+
+    detectedfilelist = fetch_filelist(params, kind='detected')
+
+    if options.old_run:
+        rejectedfilelist = fetch_filelist(params, kind='retired')
     else:
-        GZX_retired_subjects = fetch_num_detected_rejected_SWAP(params)
+        rejectedfilelist = fetch_filelist(params, kind='rejected')
+
+    # ---------------------------------------------------------------------
+    # Fetch the cumulative number of classified subjects
+
+    detected = fetch_number_of_subjects(detectedfilelist, kind='detected')
+    rejected = fetch_number_of_subjects(rejectedfilelist, kind='rejected')
+    GZX_retired_subjects = np.vstack([detected, rejected])
+
+    # ---------------------------------------------------------------------
+    # Fetch the cumulative number of classified subjects from GZ2
+
+    GZ2_retired_subjects = fetch_num_retired_GZ2(num_days,expert=options.expert)
 
 
-    GZ2_retired_subjects = fetch_num_retired_GZ(num_days)
+    # Generate appropriate output filename
+
+    if options.combined_subjects:
+        outname = options.config[len('update_'):-len('.config')]+'_combo'
+        GZX_retired_subjects = np.sum(GZX_retired_subjects,axis=0)
+    else:
+        outname = options.config[len('update_'):-len('.config')]
+
+    # ---------------------------------------------------------------------
+    # Plot that shit
 
     plot_retired_GZ_vs_SWAP(GZX_retired_subjects, GZ2_retired_subjects, 
-                            num_days, outfilename="sup_0.75")
+                            num_days, outfilename=outname)
 
+
+    # ---------------------------------------------------------------------
+    ### Generate evaluation report as a function of time 
+
+    if options.eval_report:
+        try:     
+            eval_report = Table.read('GZXevaluation_%s.txt'%outname, 
+                                     format='ascii')
+            recall = eval_report['recall']
+            accuracy = eval_report['accuracy']
+            precision = eval_report['precision']
+        except:
+            meta = swap.read_pickle(params['metadatafile'], 'storage')
+            subjects = meta.subjects
+
+            accuracy, recall, precision = generate_SWAP_eval_report(
+                detectedfilelist, rejectedfilelist, subjects)
+
+        plot_GZX_evaluation(num_days, accuracy, precision, recall, outname)
 
 
 # ----------------------------------------------------------------------#
@@ -357,8 +473,14 @@ if __name__ == '__main__':
     parser = OptionParser()
     parser.add_option("-c", dest="config", default=None)
     parser.add_option("-s", "--combo", dest="combined_subjects",
-                      action='store_false', default=True)
-    
+                      action='store_true', default=False)
+    parser.add_option("-o", "--old", dest='old_run', action='store_true',
+                      default=False)
+    parser.add_option("-e", "--eval", dest='eval_report', action='store_true',
+                      default=False)   
+    parser.add_option("-x", "--expert", dest='expert', action='store_true',
+                      default=False)
+
     (options, args) = parser.parse_args()
 
     main(options, args)

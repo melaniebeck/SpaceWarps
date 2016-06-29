@@ -108,9 +108,15 @@ def SWAP(argv):
 
     tonights = swap.Configuration(configfile)
 
-    # Read the pickled random state file
-    random_file = open(tonights.parameters['random_file'],"r");
-    random_state = cPickle.load(random_file);
+    # Read the pickled random state file if it exists, else create it
+    try:
+        random_file = open(tonights.parameters['random_file'],"r");
+        random_state = cPickle.load(random_file);
+
+    except:
+        random_file = open(tonights.parameters['random_file'],"w");
+        random_state = np.random.get_state();
+
     random_file.close();
     np.random.set_state(random_state);
 
@@ -289,9 +295,6 @@ def SWAP(argv):
 
         tstring,Name,ID,ZooID,category,kind,flavor,X,Y,location=items
         t = datetime.datetime.strptime(tstring, '%Y-%m-%d_%H:%M:%S')
-
-        if Y=='UNKNOWN':
-            print "We should be in unsupervised learning..."
 
         # Break out if we've reached the time limit:
         if t > t2:
@@ -533,19 +536,19 @@ def SWAP(argv):
 
         catalog = swap.get_new_filename(tonights.parameters,'detected_catalog')
         print "SWAP: saving catalog of detected subjects..."
-        N1, Ntot = swap.write_catalog(sample, catalog,thresholds,kind='detected')
+        N1,Ntot = swap.write_catalog(sample, catalog,thresholds,kind='detected')
         print "SWAP: From "+str(Ntot)+" subjects classified"
         print "SWAP: "+str(N1)+" detected subjects written to "+catalog 
 
         catalog = swap.get_new_filename(tonights.parameters,'rejected_catalog')
         print "SWAP: saving catalog of rejected subjects..."
-        N2, Ntot = swap.write_catalog(sample, catalog,thresholds,kind='rejected')
+        N2,Ntot = swap.write_catalog(sample, catalog,thresholds,kind='rejected')
         print "SWAP: From "+str(Ntot)+" subjects classified"
         print "SWAP: "+str(N2)+" rejected subjects written to"+catalog
 
         catalog = swap.get_new_filename(tonights.parameters,'retired_catalog')
         print "SWAP: saving catalog of retired subjects..."
-        N3, Ntot = swap.write_catalog(sample, catalog, thresholds,kind='retired')
+        N3,Ntot = swap.write_catalog(sample, catalog, thresholds,kind='retired')
         print "SWAP: From "+str(Ntot)+" subjects classified"
         print "SWAP: "+str(N3)+" retired subjects (with P < rejection OR "\
             "P > detection) written to "+catalog
@@ -611,7 +614,7 @@ def SWAP(argv):
     random_file.close();
     swap.write_config(configfile, tonights.parameters)
     #------------------------------------------------------------------
-    
+    plots = True
     if plots:
 
         # Make plots! Can't plot everything - uniformly sample 200 of each
@@ -623,17 +626,23 @@ def SWAP(argv):
         # Agent histories 
         # (This can't be plotted if some of your agents
         # don't see training images -- requires Ntraining > 0):
-        #"""
-        fig1 = bureau.start_history_plot()
-        pngfile = swap.get_new_filename(tonights.parameters,'histories')
-        print "SWAP: plotting "+str(Nc)+" agent histories in "+pngfile
-
-        for Name in bureau.shortlist(Nc):
-            bureau.member[Name].plot_history(fig1)
-
-        bureau.finish_history_plot(fig1,t,pngfile)
-        tonights.parameters['historiesplot'] = pngfile
-        #"""
+        
+        try:
+            #"""
+            fig1 = bureau.start_history_plot()
+            pngfile = swap.get_new_filename(tonights.parameters,'histories')
+            print "SWAP: plotting "+str(Nc)+" agent histories in "+pngfile
+            
+            for Name in bureau.shortlist(Nc):
+                bureau.member[Name].plot_history(fig1)
+                
+                bureau.finish_history_plot(fig1,t,pngfile)
+                tonights.parameters['historiesplot'] = pngfile
+            #"""
+        except: 
+            print "SWAP: Couldn't print agent historys because not all "\
+                "volunteers saw at least one training image"
+            pass
 
         # ---------------------------------------------------------------
         # Agent probabilities:

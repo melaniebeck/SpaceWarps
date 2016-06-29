@@ -112,11 +112,11 @@ def write_list(sample, filename, item=None, source=None):
             if subject.state == 'inactive':
                 string = subject.ZooID
 
-        elif item == 'detected':
+        elif item == 'detected': # Phil labeled these "candidate"
             if subject.kind == 'test' and subject.status == 'detected':
                 string = subject.location
 
-        elif item == 'rejected':
+        elif item == 'rejected': # I added this one in
             if subject.kind == 'test' and subject.status == 'rejected':
                 string = subject.location
 
@@ -170,24 +170,24 @@ def write_catalog(sample,filename,thresholds,kind='test',source=None):
         The first two take care of when kind == retired, rejected, detected
         """
         # Perhaps you want a catalog of ALL rejected & detected subjects...
-        if kind == 'retired':
-            if subject.status != 'undecided':
-                output = (subject.ZooID, P, subject.exposure, subject.location)
-                F.write('%s  %9.7f  %s       %s\n'%output)
-                Nsubset += 1
+        # Whether `detected` or `rejected`, subject will have 
+        # status != undecided and state == inactive
+        if kind == 'retired' and subject.status != 'undecided':
+            output = (subject.ZooID, P, subject.exposure, subject.location)
+            F.write('%s  %9.7f  %s       %s\n'%output)
+            Nsubset += 1
                 
-        # Perhaps you want ONLY the rejected or detected objects... 
+        # Perhaps you want ONLY the `rejected` or `detected` objects... 
         elif subject.status == kind:
             output = (subject.ZooID, P, subject.exposure, subject.location)
             F.write('%s  %9.7f  %s       %s\n'%output)           
             Nsubset += 1
             
         # Perhaps you want the possible candidates (P > rejected)
-        else:
-            if P > thresholds['rejection'] and subject.kind == kind:
-                output = (subject.ZooID, P, subject.exposure, subject.location)
-                F.write('%s  %9.7f  %s       %s\n'%output)
-                Nsubset += 1
+        elif P > thresholds['rejection'] and subject.kind == kind:
+            output = (subject.ZooID, P, subject.exposure, subject.location)
+            F.write('%s  %9.7f  %s       %s\n'%output)
+            Nsubset += 1
 
         Nsubjects += 1
 
