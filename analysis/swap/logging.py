@@ -259,9 +259,9 @@ def compile_report(tex,pars):
 
 # ----------------------------------------------------------------------
 
-def set_cookie(go):
+def set_cookie(go, cookie_name='cookie'):
     
-    F = open('.swap.cookie','w')
+    F = open('.swap.%s'%cookie_name,'w')
     if go:
         F.write('running')
     else:
