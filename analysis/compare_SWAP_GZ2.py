@@ -5,7 +5,7 @@ import pdb, os, subprocess, sys
 import MySQLdb as mdb
 import datetime, cPickle
 from astropy.table import Table, vstack, join
-from optparse import OptionParser
+from argparse import ArgumentParser
 import swap
 import glob
 
@@ -404,9 +404,9 @@ def generate_SWAP_eval_report(detectedfilelist, rejectedfilelist, subjects):
 
 # ----------------------------------------------------------------------#
 # ----------------------------------------------------------------------#
-def main(options, args):   
+def main(args):   
 
-    params = fetch_parameters(options.config)
+    params = fetch_parameters(args.config)
     num_days = fetch_num_days(params)
 
     # ---------------------------------------------------------------------
@@ -414,13 +414,13 @@ def main(options, args):
 
     detectedfilelist = fetch_filelist(params, kind='detected')
 
-    if options.old_run:
+    if args.old_run:
         rejectedfilelist = fetch_filelist(params, kind='retired')
     else:
         rejectedfilelist = fetch_filelist(params, kind='rejected')
 
     # ---------------------------------------------------------------------
-    # Fetch the cumulative number of classified subjects
+    # Fetch the cumulative number of classified subjects from SWAP
 
     detected = fetch_number_of_subjects(detectedfilelist, kind='detected')
     rejected = fetch_number_of_subjects(rejectedfilelist, kind='rejected')
@@ -429,16 +429,16 @@ def main(options, args):
     # ---------------------------------------------------------------------
     # Fetch the cumulative number of classified subjects from GZ2
 
-    GZ2_retired_subjects = fetch_num_retired_GZ2(num_days,expert=options.expert)
+    GZ2_retired_subjects = fetch_num_retired_GZ2(num_days,expert=args.expert)
 
 
     # Generate appropriate output filename
 
-    if options.combined_subjects:
-        outname = options.config[len('update_'):-len('.config')]+'_combo'
+    if args.combined_subjects:
+        outname = args.config[len('update_'):-len('.config')]+'_combo'
         GZX_retired_subjects = np.sum(GZX_retired_subjects,axis=0)
     else:
-        outname = options.config[len('update_'):-len('.config')]
+        outname = arguments.config[len('update_'):-len('.config')]
 
     # ---------------------------------------------------------------------
     # Plot that shit
@@ -450,7 +450,7 @@ def main(options, args):
     # ---------------------------------------------------------------------
     ### Generate evaluation report as a function of time 
 
-    if options.eval_report:
+    if args.eval_report:
         try:     
             eval_report = Table.read('GZXevaluation_%s.txt'%outname, 
                                      format='ascii')
@@ -470,17 +470,17 @@ def main(options, args):
 # ----------------------------------------------------------------------#
 # ----------------------------------------------------------------------#
 if __name__ == '__main__':
-    parser = OptionParser()
-    parser.add_option("-c", dest="config", default=None)
-    parser.add_option("-s", "--combo", dest="combined_subjects",
+    parser = ArgumentParser()
+    parser.add_argument("-c", dest="config", default=None)
+    parser.add_argument("-s", "--combo", dest="combined_subjects",
                       action='store_true', default=False)
-    parser.add_option("-o", "--old", dest='old_run', action='store_true',
+    parser.add_argument("-o", "--old", dest='old_run', action='store_true',
                       default=False)
-    parser.add_option("-e", "--eval", dest='eval_report', action='store_true',
+    parser.add_argument("-e", "--eval", dest='eval_report', action='store_true',
                       default=False)   
-    parser.add_option("-x", "--expert", dest='expert', action='store_true',
+    parser.add_argument("-x", "--expert", dest='expert', action='store_true',
                       default=False)
 
-    (options, args) = parser.parse_args()
+    args = parser.parse_args()
 
-    main(options, args)
+    main(args)

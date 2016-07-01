@@ -102,7 +102,7 @@ class MySQLdb(object):
         # --- if answer_id == 1, smooth
         # ---    answer_id == 2, features/disk
         # ---    answer_id == 3, star/artifact
-        if classification['answer_id'] == 2: result = 'FEAT'
+        if classification['answer_id'] == 1: result = 'SMOOTH'
         else: result = 'NOT'
 
         idx = np.where(subjects['SDSS_id']==long(ZooID))
@@ -119,15 +119,15 @@ class MySQLdb(object):
         if subject['Nair_label']!=-1:
             category = 'training'
 
-            if subject['Nair_label']==0:
+            if subject['Nair_label']==1:
                 flavor='lensing cluster'
                 kind='sim'
-                truth='NOT'
+                truth='SMOOTH'
 
-            elif subject['Nair_label']==1:
+            elif subject['Nair_label']==0:
                 flavor='dud'
                 kind='dud'
-                truth='SMOOTH'
+                truth='NOT'
         else:                 
             category = 'test'
             kind = 'test'
