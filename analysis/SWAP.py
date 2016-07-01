@@ -192,7 +192,7 @@ def SWAP(argv):
     elif (tonights.parameters['start'] == 'dont_bother') or \
          (tonights.parameters['start'] == tonights.parameters['end']):
         print "SWAP: looks like there is nothing more to do!"
-        swap.set_cookie(False)
+        swap.set_cookie(False,cookie_name=survey)
         print swap.doubledashedline
         return
     else:
@@ -413,7 +413,7 @@ def SWAP(argv):
             t1 = t
         # Did we at least manage to do 1?
         elif count == 2:
-            swap.set_cookie(True)
+            swap.set_cookie(True, cookie_name=survey)
         # Have we done enough for this run?
         elif count == count_max:
             break
@@ -587,17 +587,17 @@ def SWAP(argv):
     if more_to_do:
         # Turn off cookie and start the big plots
         if t2 == tstop: 
-            swap.set_cookie(False)
+            swap.set_cookie(False, cookie_name=survey)
             plots = True
 
         # otherwise, increment by the timestep 
         # Turn cookie on and update the config "start" 
         else: 
-            swap.set_cookie(True)
+            swap.set_cookie(True, cookie_name=survey)
             tonights.parameters['start'] = t2.strftime('%Y-%m-%d_%H:%M:%S')
                 
     else:
-        swap.set_cookie(False)
+        swap.set_cookie(False, cookie_name=survey)
     # SWAPSHOP will read this cookie and act accordingly.
 
     
@@ -614,7 +614,7 @@ def SWAP(argv):
     random_file.close();
     swap.write_config(configfile, tonights.parameters)
     #------------------------------------------------------------------
-    plots = True
+    plots=True
     if plots:
 
         # Make plots! Can't plot everything - uniformly sample 200 of each

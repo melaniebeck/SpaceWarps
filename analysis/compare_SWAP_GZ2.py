@@ -438,7 +438,7 @@ def main(args):
         outname = args.config[len('update_'):-len('.config')]+'_combo'
         GZX_retired_subjects = np.sum(GZX_retired_subjects,axis=0)
     else:
-        outname = arguments.config[len('update_'):-len('.config')]
+        outname = args.config[len('update_'):-len('.config')]
 
     # ---------------------------------------------------------------------
     # Plot that shit

@@ -95,10 +95,15 @@ while more_to_do:
     # Increment the day
     count+=1
 
+    # check for a unique cookie for this run
+    if os.path.exists('.swap.%s'%the.parameters['survey']):
+        cookie=the.parameters['survey']
+    else: cookie='.swap.cookie'
+
     # Check if SWAP.py set the "keep going" cookie to False
     #more = os.system("grep 'running' .swap.cookie | wc -l")
-    if int(subprocess.check_output("grep 'running' .swap.cookie | wc -l", 
-                                   shell=True)):
+    if int(subprocess.check_output("grep 'running' .swap.%s | wc -l"\
+                                    %cookie, shell=True)):
         try: config = options.config_name.replace('startup','update')
         except: config = "update.config"
         print "SWAPSHOP: ran SWAP.py %i times"%count
