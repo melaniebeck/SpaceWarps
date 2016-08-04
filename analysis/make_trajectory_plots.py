@@ -2,6 +2,7 @@
 # ======================================================================
 
 import sys,getopt,numpy as np
+import pdb
 
 # import matplotlib
 # # Force matplotlib to not use any Xwindows backend:
@@ -79,6 +80,8 @@ def make_trajectory_plots(argv):
     backdrop = False
     title = 'Example Subject Trajectories'
     histogram = False
+
+    pdb.set_trace()
 
     for o,a in opts:
        if o in ("-h", "--help"):

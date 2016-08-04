@@ -1,5 +1,6 @@
 import numpy as np
 import pdb
+import sys
 
 truth = {'SMOOTH':1, 'NOT':0, 'UNKNOWN':-1}
 
@@ -41,7 +42,7 @@ def Nair_label_SMOOTH_NOT(Nair_subjects):
     return np.array(label)
 
 
-def GZ2_label_SMOOTH_NOT(GZ2_subjects):
+def GZ2_label_SMOOTH_NOT(GZ2_subjects,type='raw'):
     """ 
     GZ2_subject should have stucture like a dictionary and should
        include field names GZ2assets_Nair_Morph_zoo2Main.fits or similar
@@ -53,9 +54,20 @@ def GZ2_label_SMOOTH_NOT(GZ2_subjects):
     """
     label = []
 
-    smooth = GZ2_subjects['t01_smooth_or_features_a01_smooth_debiased']
-    disk = GZ2_subjects['t01_smooth_or_features_a02_features_or_disk_debiased']
-    star = GZ2_subjects['t01_smooth_or_features_a03_star_or_artifact_debiased']
+    if type == 'raw':           suffix = 'fraction'
+    elif type == 'weighted':    suffix = 'weighted_fraction'
+    elif type == 'debiased':    suffix = 'debiased'
+    else: 
+        print "%s is not a GZ2 vote option"%type
+        sys.exit()
+
+    task1_answer1 = 't01_smooth_or_features_a01_smooth_%s'%suffix
+    task1_answer2 = 't01_smooth_or_features_a02_features_or_disk_%s'%suffix
+    task1_answer3 = 't01_smooth_or_features_a03_star_or_artifact_%s'%suffix
+
+    smooth = GZ2_subjects[task1_answer1]
+    disk = GZ2_subjects[task1_answer2]
+    star = GZ2_subjects[task1_answer3]
     
     #for GZ2_subject in GZ2_subjects:
     for sm,d,st in zip(smooth,disk,star):
@@ -66,12 +78,14 @@ def GZ2_label_SMOOTH_NOT(GZ2_subjects):
             #label = truth['SMOOTH']
             label.append(truth['SMOOTH'])
             
-        #elif d == majority:
-        #    #label = truth['NOT']
-        #    label.append(truth['NOT'])
-            
-        else: 
+        elif d == majority or st == majority:
+            #label = truth['NOT']
             label.append(truth['NOT'])
+            
+        # For some GZ2 options, there IS NO LABEL
+        # DON'T just assume these are "NOT". Chuck em out.
+        else: 
+            label.append(truth['UNKNOWN'])
 
     print "GZ2 labels complete."
     return np.array(label)
@@ -192,10 +206,18 @@ def main():
     """
     # Feed these functions the ASSETS table (not gzmain)
     # If the necessary info for that subject doesn't exist, XXX_label = -1
-    GZ2_label = GZ2_label_SMOOTH_NOT(assets)
-    Nair_label = Nair_label_SMOOTH_NOT(assets)
-    Expert_label = Expert_label_SMOOTH_NOT(assets)
+    GZ2_label_raw = GZ2_label_SMOOTH_NOT(assets,type='raw')
+    GZ2_label_weighted = GZ2_label_SMOOTH_NOT(assets,type='weighted')
+    #Nair_label = Nair_label_SMOOTH_NOT(assets)
+    #Expert_label = Expert_label_SMOOTH_NOT(assets)
     print "Finished labelling"
+
+    # 7/12/16 -- OPEN previously constructed metadata table and add a new column!
+    previous = Table.read('metadata_ground_truth_labels.fits')
+
+
+    pdb.set_trace()
+
     
     # find which indices Expert_label has in gzmain
     #result = find_indices(assets['JID'], expert['JID'])

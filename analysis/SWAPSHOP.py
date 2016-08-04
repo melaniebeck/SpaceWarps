@@ -50,14 +50,20 @@ print "SWAPSHOP: running MachineClassifier.py after SWAP.py? "+str(machine)
 #-------------------------------------------------------------------
 # Is this a new run or are we picking up from where we left off? 
 
-try:
-    count = int(subprocess.check_output("find %s*/ -maxdepth 1 -type d -print "\
-                                       "| wc -l"%the.parameters['survey'], 
-                                        shell=True))
-except:
+if options.new:
+    print "SWAPSHOP: starting a new run."
     count = 0
 
-print "SWAPSHOP: found %i directories from a previous run."%count
+else:
+    try:
+        count = int(subprocess.check_output("find %s*/ -maxdepth 1 -type d -print "\
+                                            "| wc -l"%the.parameters['survey'], 
+                                            shell=True))
+        print "SWAPSHOP: continuing a run; found %i associated directories."%count
+    except:
+        count = 0
+        print "SWAPSHOP: continuing a run; found no associated directories."
+
 
 
 #-------------------------------------------------------------------
@@ -90,7 +96,7 @@ while more_to_do:
 
     if machine:
         # ALWAYS run MachineClassifier.py with update.config!
-        os.system("python MachineClassifier.py -c update.config")
+        os.system("python MachineClassifier.py -c %s"%config)
 
     # Increment the day
     count+=1
@@ -98,7 +104,7 @@ while more_to_do:
     # check for a unique cookie for this run
     if os.path.exists('.swap.%s'%the.parameters['survey']):
         cookie=the.parameters['survey']
-    else: cookie='.swap.cookie'
+    else: cookie='cookie'
 
     # Check if SWAP.py set the "keep going" cookie to False
     #more = os.system("grep 'running' .swap.cookie | wc -l")
