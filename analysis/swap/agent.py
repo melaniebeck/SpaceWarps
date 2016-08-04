@@ -177,11 +177,10 @@ class Agent(object):
             # "supervised_and_unsupervised" is True
             elif actually_it_was=='UNKNOWN':
 
-                #increment = float(with_probability)/1e4
+                increment = float(with_probability)
 
                 if it_was=='SMOOTH':
-                    # This shouldn't be here...
-                    increment = 1.0
+
                     if not ignore:
                         self.PL = (self.PL*self.NL + increment)/(self.NL + 
                                                                  increment)
@@ -197,8 +196,7 @@ class Agent(object):
                     self.ND += (1.0 - increment)
 
                 elif it_was=='NOT':
-                    # This shouldn't be here...
-                    increment = 0.0
+
                     if not ignore:
                         self.PL = (self.PL*self.NL + 0.0)/(self.NL + increment)
                         self.PL = np.min([self.PL,swap.PLmax])

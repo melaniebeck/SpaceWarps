@@ -566,6 +566,11 @@ def SWAP(argv):
     
     if tonights.parameters['repickle'] and count > 0:
 
+        # 8-4-16: MB just learned that constantly appending numpy
+        #         arrays is vastly more expensive and slow! 
+        #         Instead -- make agent and subject histories python lists
+        #         If we want to pickle the object, THEN cast them as numpy arrays
+
         new_bureaufile = swap.get_new_filename(tonights.parameters,'bureau')
         print "SWAP: saving agents to "+new_bureaufile
         swap.write_pickle(bureau,new_bureaufile)

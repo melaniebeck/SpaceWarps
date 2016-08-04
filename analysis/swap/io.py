@@ -90,7 +90,7 @@ def read_pickle(filename,flavour):
 # Write out an instance of a class to file.
 
 def write_pickle(contents,filename):
-
+    
     F = open(filename,"wb")
     cPickle.dump(contents,F,protocol=2)
     F.close()
